@@ -6,6 +6,7 @@ from pathlib import Path
 
 import cv2
 import imagehash
+import numpy
 from PIL import Image
 
 
@@ -16,7 +17,7 @@ def dict_by_value(dict, value):
 
 
 def write_fingerprint(path, fingerprint):
-    path = "frames/" + replace(path) + "/aa_fingerprint.txt"
+    path = "fingerprints/" + replace(path) + "/fingerprint.txt"
     with open(path, "w+") as text_file:
         text_file.write(fingerprint)
 
@@ -25,26 +26,22 @@ def replace(s):
     return re.sub('[^A-Za-z0-9]+', '', s)
 
 
-def create_frame_fingerprint(image_path):
-    image = Image.open(image_path)
-    h = str(imagehash.dhash(image))
-    return h
-
-
 def create_video_fingerprint(path):
     video_fingerprint = ""
     video = cv2.VideoCapture(path)
     fps = video.get(cv2.CAP_PROP_FPS)
-    success, image = video.read()
+    success, frame = video.read()
     count = 0
+    Path("fingerprints/" + replace(path) + "/frames").mkdir(parents=True, exist_ok=True)
     while count < int(300.0 * fps) + 1:
-        frame_path = "frames/" + replace(path)
-        Path(frame_path).mkdir(parents=True, exist_ok=True)
-        cv2.imwrite(frame_path + "/frame%d.jpg" % count, image)  # save frame as JPEG file
-        frame_fingerprint = create_frame_fingerprint(frame_path + "/frame%d.jpg" % count)
+        if True:
+            cv2.imwrite("fingerprints/" + replace(path) + "/frames/frame%d.jpg" % count, frame)
+        image = Image.fromarray(numpy.uint8(frame))
+        frame_fingerprint = str(imagehash.dhash(image))
         video_fingerprint += frame_fingerprint
-        print(path + " " + str(count) + "/" + str(int(300.0 * fps) + 1) + " " + frame_fingerprint, success)
-        success, image = video.read()
+        if count % 1000 == 0:
+            print(path + " " + str(count) + "/" + str(int(300.0 * fps) + 1))
+        success, frame = video.read()
         count += sample_frame
     return video_fingerprint
 
@@ -98,9 +95,9 @@ def get_start_end(print1, print2):
 def for_files(files):
     fingerprints = []
     for file in files:
-        if path.exists("frames/" + replace(file) + "/aa_fingerprint.txt"):
+        if path.exists("fingerprints/" + replace(file) + "/fingerprint.txt"):
             print(file + " fingerprint exists - loading it")
-            with open("frames/" + replace(file) + "/aa_fingerprint.txt", "r") as text_file:
+            with open("fingerprints/" + replace(file) + "/fingerprint.txt", "r") as text_file:
                 fingerprint = text_file.read()
         else:
             print(file + " fingerprint does not exist - creating it")
@@ -108,9 +105,10 @@ def for_files(files):
             write_fingerprint(file, fingerprint)
         fingerprints.append(fingerprint)
     tokens, matrix = tokenize_fingerprints(fingerprints)
-    print(files[0] + " - " + str(get_start_end(tokens[0], tokens[1])))
-    print(files[0] + " - " + str(get_start_end(tokens[2], tokens[3])))
-    print(files[0] + " - " + str(get_start_end(tokens[4], tokens[5])))
+    #todo use files list to calculate entries and display. temp only
+    print(str(get_start_end(tokens[0], tokens[1])))
+    print(str(get_start_end(tokens[2], tokens[3])))
+    print(str(get_start_end(tokens[4], tokens[3])))
 
 
 print(datetime.now())
