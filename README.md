@@ -6,5 +6,5 @@ largest common subset of frames with a bit of fuzziness.
 ## Running
 
 1. Install dependencies from `requirements.txt`
-2. Modify `paths` variable in `main.py` and add the absolute path to at **two** episodes of the same season
+2. Modify `paths` variable in `main.py` and add the absolute path to at least **two** episodes of the same season.
 3. (Run this code only for one season of one show at a time)
