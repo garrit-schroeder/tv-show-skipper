@@ -113,7 +113,11 @@ def for_files(files):
 
 print(datetime.now())
 seconds_from_start = 300  # 5 minuets
-sample_frame = 1  # take every X frame
+# take every X frame
+# 1 works the best
+# 2 sometimes works as good as 1 but not always
+# 3 and further not tested
+sample_frame = 1
 paths = [
 ]
 for_files(paths)
