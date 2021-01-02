@@ -25,7 +25,7 @@ def replace(s):
     return re.sub('[^A-Za-z0-9]+', '', s)
 
 
-def create_fingerprint(image_path):
+def create_frame_fingerprint(image_path):
     image = Image.open(image_path)
     h = str(imagehash.dhash(image))
     return h
@@ -41,12 +41,43 @@ def create_video_fingerprint(path):
         frame_path = "frames/" + replace(path)
         Path(frame_path).mkdir(parents=True, exist_ok=True)
         cv2.imwrite(frame_path + "/frame%d.jpg" % count, image)  # save frame as JPEG file
-        frame_fingerprint = create_fingerprint(frame_path + "/frame%d.jpg" % count)
+        frame_fingerprint = create_frame_fingerprint(frame_path + "/frame%d.jpg" % count)
         video_fingerprint += frame_fingerprint
         print(path + " " + str(count) + "/" + str(int(300.0 * fps) + 1) + " " + frame_fingerprint, success)
         success, image = video.read()
         count += sample_frame
     return video_fingerprint
+
+
+def get_unique_frames_fingerprint(video_fingerprints):
+    unique_frames = []
+    for video_fingerprint in video_fingerprints:
+        for frame_fingerprint in re.findall('................', video_fingerprint):
+            unique_frames.append(frame_fingerprint)
+    unique_frames = list(set(unique_frames))
+    return unique_frames
+
+
+def create_matrix(unique_frames):
+    unique_frame_tokens = {}
+    for i in range(62, len(unique_frames)):
+        unique_frame_tokens[unique_frames[i]] = chr(i)
+    return unique_frame_tokens
+
+
+def tokenize_fingerprints(video_fingerprints):
+    unique_frames = get_unique_frames_fingerprint(video_fingerprints)
+    frame_matrix = create_matrix(unique_frames)
+    token_video_fingerprints = []
+    for video_fingerprint in video_fingerprints:
+        token_video_fingerprint = ""
+        for frame_fingerprint in re.findall('................', video_fingerprint):
+            try:
+                token_video_fingerprint += frame_matrix[frame_fingerprint]
+            except Exception as e:
+                print(e)
+        token_video_fingerprints.append(token_video_fingerprint)
+    pass
 
 
 def for_files(files):
@@ -61,6 +92,7 @@ def for_files(files):
             fingerprint = create_video_fingerprint(file)
             write_fingerprint(file, fingerprint)
         fingerprints.append(fingerprint)
+    tokenize_fingerprints(fingerprints)
 
 
 print(datetime.now())
