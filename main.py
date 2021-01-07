@@ -50,9 +50,9 @@ def get_equal_frames(print1, print2):
     equal_frames = []
     count = 0
     while min(len(print1), len(print2)) > count:
-        if print1[count:count + 16] == print2[count:count + 16]:
-            equal_frames.append(print1[count:count + 16])
-        count += 16
+        if print1[count] == print2[count]:
+            equal_frames.append(print1[count])
+        count += 1
     return equal_frames
 
 
@@ -76,18 +76,17 @@ def tokenize_fingerprints(video_fingerprints):
 
 
 def get_start_end(print1, print2):
-    offset = int(len(print1) / 16)
     highest_equal_frames = []
-    for i in range(0, offset):
-        equal_frames = get_equal_frames(print1[-i * 16:], print2)
+    for i in range(0, len(print1)):
+        equal_frames = get_equal_frames(print1[-i:], print2)
         if len(equal_frames) > len(highest_equal_frames):
             highest_equal_frames = equal_frames
-        equal_frames = get_equal_frames(print1, print2[i * 16:])
+        equal_frames = get_equal_frames(print1, print2[i:])
         if len(equal_frames) > len(highest_equal_frames):
             highest_equal_frames = equal_frames
-    p = re.compile(".*?".join(highest_equal_frames))
-    search = re.search(p, print1)
-    search2 = re.search(p, print2)
+    p = re.compile("(" + ").*?(".join(highest_equal_frames) + ")")
+    search = re.search(p, "".join(print1))
+    search2 = re.search(p, "".join(print2))
     return (int(search.start() / 16), int(search.end() / 16)), (int(search2.start() / 16), int(search2.end() / 16))
 
 
@@ -102,7 +101,7 @@ def for_files(files):
             print(file + " fingerprint does not exist - creating it")
             fingerprint = create_video_fingerprint(file)
             write_fingerprint(file, fingerprint)
-        fingerprints.append(fingerprint)
+        fingerprints.append(re.findall("................", fingerprint))
     # tokens, matrix = tokenize_fingerprints(fingerprints)
     # todo use files list to calculate entries and display. temp only
     print(str(get_start_end(fingerprints[0], fingerprints[1])))
@@ -124,4 +123,4 @@ paths = [
 for_files(paths)
 end = datetime.now()
 print(end)
-print("duration: " + str(end - start))
+print("untoken duration: " + str(end - start))
