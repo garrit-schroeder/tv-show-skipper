@@ -110,7 +110,8 @@ def for_files(files):
     print(str(get_start_end(fingerprints[4], fingerprints[3])))
 
 
-print(datetime.now())
+start = datetime.now()
+print(start)
 seconds_from_start = 300  # 5 minuets
 # take every X frame
 # 1 works the best
@@ -118,6 +119,9 @@ seconds_from_start = 300  # 5 minuets
 # 3 and further not tested
 sample_frame = 1
 paths = [
+
 ]
 for_files(paths)
-print(datetime.now())
+end = datetime.now()
+print(end)
+print("duration: " + str(end - start))
