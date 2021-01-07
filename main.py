@@ -3,6 +3,7 @@ import sys
 from datetime import datetime
 from os import path
 from pathlib import Path
+from time import sleep
 
 import cv2
 import imagehash
@@ -105,13 +106,14 @@ def for_files(files):
             write_fingerprint(file, fingerprint)
         fingerprints.append(fingerprint)
     tokens, matrix = tokenize_fingerprints(fingerprints)
-    #todo use files list to calculate entries and display. temp only
+    # todo use files list to calculate entries and display. temp only
     print(str(get_start_end(tokens[0], tokens[1])))
     print(str(get_start_end(tokens[2], tokens[3])))
     print(str(get_start_end(tokens[4], tokens[3])))
 
 
-print(datetime.now())
+start = datetime.now()
+print(start)
 seconds_from_start = 300  # 5 minuets
 # take every X frame
 # 1 works the best
@@ -119,6 +121,9 @@ seconds_from_start = 300  # 5 minuets
 # 3 and further not tested
 sample_frame = 1
 paths = [
+
 ]
 for_files(paths)
-print(datetime.now())
+end = datetime.now()
+print(end)
+print("duration: " + str(end - start))
