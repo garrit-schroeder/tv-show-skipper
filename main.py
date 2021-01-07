@@ -50,9 +50,9 @@ def get_equal_frames(print1, print2):
     equal_frames = []
     count = 0
     while min(len(print1), len(print2)) > count:
-        if print1[count] == print2[count]:
-            equal_frames.append(print1[count])
-        count += 1
+        if print1[count:count + 16] == print2[count:count + 16]:
+            equal_frames.append(print1[count:count + 16])
+        count += 16
     return equal_frames
 
 
@@ -62,7 +62,7 @@ def tokenize_fingerprints(video_fingerprints):
         for frame_print in re.findall("................", fingerprint):
             unique_prints.add(frame_print)
     matrix = {}
-    counter = 60
+    counter = 61
     for unique_print in unique_prints:
         matrix[unique_print] = chr(counter)
         counter += 1
@@ -76,20 +76,19 @@ def tokenize_fingerprints(video_fingerprints):
 
 
 def get_start_end(print1, print2):
-    offset = len(print1)
+    offset = int(len(print1) / 16)
     highest_equal_frames = []
     for i in range(0, offset):
-        equal_frames = get_equal_frames(print1[-i:], print2)
+        equal_frames = get_equal_frames(print1[-i * 16:], print2)
         if len(equal_frames) > len(highest_equal_frames):
             highest_equal_frames = equal_frames
-    for i in range(0, offset):
-        equal_frames = get_equal_frames(print1, print2[i:])
+        equal_frames = get_equal_frames(print1, print2[i * 16:])
         if len(equal_frames) > len(highest_equal_frames):
             highest_equal_frames = equal_frames
     p = re.compile(".*?".join(highest_equal_frames))
     search = re.search(p, print1)
     search2 = re.search(p, print2)
-    return (search.start(), search.end()), (search2.start(), search2.end())
+    return (int(search.start() / 16), int(search.end() / 16)), (int(search2.start() / 16), int(search2.end() / 16))
 
 
 def for_files(files):
@@ -104,11 +103,11 @@ def for_files(files):
             fingerprint = create_video_fingerprint(file)
             write_fingerprint(file, fingerprint)
         fingerprints.append(fingerprint)
-    tokens, matrix = tokenize_fingerprints(fingerprints)
-    #todo use files list to calculate entries and display. temp only
-    print(str(get_start_end(tokens[0], tokens[1])))
-    print(str(get_start_end(tokens[2], tokens[3])))
-    print(str(get_start_end(tokens[4], tokens[3])))
+    # tokens, matrix = tokenize_fingerprints(fingerprints)
+    # todo use files list to calculate entries and display. temp only
+    print(str(get_start_end(fingerprints[0], fingerprints[1])))
+    print(str(get_start_end(fingerprints[2], fingerprints[3])))
+    print(str(get_start_end(fingerprints[4], fingerprints[3])))
 
 
 print(datetime.now())
