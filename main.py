@@ -52,19 +52,19 @@ def create_video_fingerprint(path):
 
 def get_equal_frames(print1, print2):
     equal_frames = []
-    for j in range(0, int(len(print1) / 16)):
-        if print1[j * 16:j * 16 + 16] == print2[j * 16:j * 16 + 16]:
-            equal_frames.append(print1[j * 16:j * 16 + 16])
+    for j in range(0, int(len(print1) / 16 / check_frame)):
+        if print1[j * 16 * check_frame:j * 16 * check_frame + 16] == print2[j * 16 * check_frame:j * 16 * check_frame + 16]:
+            equal_frames.append(print1[j * 16 * check_frame:j * 16 * check_frame + 16])
     return equal_frames
 
 
 def get_start_end(print1, print2):
     highest_equal_frames = []
-    for k in range(0, int(len(print1) / 16)):
-        equal_frames = get_equal_frames(print1[-k * 16:], print2)
+    for k in range(0, int(len(print1) / 16 / check_frame)):
+        equal_frames = get_equal_frames(print1[-k * 16 * check_frame:], print2)
         if len(equal_frames) > len(highest_equal_frames):
             highest_equal_frames = equal_frames
-        equal_frames = get_equal_frames(print1, print2[k * 16:])
+        equal_frames = get_equal_frames(print1, print2[k * 16 * check_frame:])
         if len(equal_frames) > len(highest_equal_frames):
             highest_equal_frames = equal_frames
     p = re.compile(".*?".join(highest_equal_frames))
@@ -93,6 +93,7 @@ debug = False
 # 2 sometimes works as good as 1 but not always
 # 3 and further not tested
 sample_frame = 1
+check_frame = 10
 file_paths = [
     'samples/Modern Family (2009) S11E01.mkv',
     'samples/Modern Family (2009) S11E02.mkv',
