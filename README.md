@@ -1,4 +1,4 @@
-# tv-shop-skipper
+# tv-show-skipper
 
 This project tries to detect intros of tv series by comparing two episodes of the same series and trying to find the
 largest common subset of frames with a bit of fuzziness.

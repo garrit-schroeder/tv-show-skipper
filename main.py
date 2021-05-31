@@ -86,15 +86,10 @@ def for_files(files):
             write_fingerprint(file, fingerprint)
         fingerprints.append(re.findall("................", fingerprint))
     # todo use files list to calculate entries and display. temp only
-    print(str(get_start_end(fingerprints[0], fingerprints[1])))
-    print(str(get_start_end(fingerprints[2], fingerprints[3])))
-    print(str(get_start_end(fingerprints[4], fingerprints[5])))
-    print(str(get_start_end(fingerprints[6], fingerprints[7])))
-    print(str(get_start_end(fingerprints[8], fingerprints[9])))
-    print(str(get_start_end(fingerprints[10], fingerprints[11])))
-    print(str(get_start_end(fingerprints[12], fingerprints[13])))
-    print(str(get_start_end(fingerprints[14], fingerprints[15])))
-    print(str(get_start_end(fingerprints[16], fingerprints[15])))
+    for i in range(0, len(files) - 1):
+        print(str(get_start_end(fingerprints[i], fingerprints[i + 1])))
+        # todo check last list element
+
 
 
 start = datetime.now()
@@ -106,9 +101,14 @@ debug = False
 # 3 and further not tested
 sample_frame = 1
 paths = [
-
+    'samples/Modern Family (2009) S11E01.mkv',
+    'samples/Modern Family (2009) S11E02.mkv',
+    'samples/Modern Family (2009) S11E03.mkv',
+    'samples/Modern Family (2009) S11E04.mkv',
+    'samples/Modern Family (2009) S11E05.mkv',
+    'samples/Modern Family (2009) S11E06.mkv',
 ]
 for_files(paths)
 end = datetime.now()
 print(end)
-print("untoken duration: " + str(end - start))
+print("duration: " + str(end - start))
