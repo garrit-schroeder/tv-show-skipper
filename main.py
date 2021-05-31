@@ -1,5 +1,5 @@
 import re
-import sys
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from os import path
 from pathlib import Path
@@ -8,6 +8,8 @@ import cv2
 import imagehash
 import numpy
 from PIL import Image
+
+executor = ThreadPoolExecutor(max_workers=5)
 
 
 def dict_by_value(dict, value):
@@ -29,18 +31,18 @@ def replace(s):
 def create_video_fingerprint(path):
     video_fingerprint = ""
     video = cv2.VideoCapture(path)
-    max_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+    frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
     success, frame = video.read()
     count = 0
     Path("fingerprints/" + replace(path) + "/frames").mkdir(parents=True, exist_ok=True)
-    while count < int(max_frames / 4):
+    while count < int(frames / 4):
         if debug:
             cv2.imwrite("fingerprints/" + replace(path) + "/frames/frame%d.jpg" % count, frame)
         image = Image.fromarray(numpy.uint8(frame))
         frame_fingerprint = str(imagehash.dhash(image))
         video_fingerprint += frame_fingerprint
         if count % 1000 == 0:
-            print(path + " " + str(count) + "/" + str(int(max_frames / 4)))
+            print(path + " " + str(count) + "/" + str(int(frames / 4)))
         success, frame = video.read()
         count += sample_frame
     if video_fingerprint == "":
@@ -50,46 +52,37 @@ def create_video_fingerprint(path):
 
 def get_equal_frames(print1, print2):
     equal_frames = []
-    count = 0
-    while min(len(print1), len(print2)) > count:
-        if print1[count] == print2[count]:
-            equal_frames.append(print1[count])
-        count += 1
+    for j in range(0, int(len(print1) / 16)):
+        if print1[j * 16:j * 16 + 16] == print2[j * 16:j * 16 + 16]:
+            equal_frames.append(print1[j * 16:j * 16 + 16])
     return equal_frames
 
 
 def get_start_end(print1, print2):
     highest_equal_frames = []
-    for i in range(0, len(print1)):
-        equal_frames = get_equal_frames(print1[-i:], print2)
+    for k in range(0, int(len(print1) / 16)):
+        equal_frames = get_equal_frames(print1[-k * 16:], print2)
         if len(equal_frames) > len(highest_equal_frames):
             highest_equal_frames = equal_frames
-        equal_frames = get_equal_frames(print1, print2[i:])
+        equal_frames = get_equal_frames(print1, print2[k * 16:])
         if len(equal_frames) > len(highest_equal_frames):
             highest_equal_frames = equal_frames
-    p = re.compile(".*?".join(highest_equal_frames) + "*")
+    p = re.compile(".*?".join(highest_equal_frames))
     search = re.search(p, "".join(print1))
     search2 = re.search(p, "".join(print2))
     return (int(search.start() / 16), int(search.end() / 16)), (int(search2.start() / 16), int(search2.end() / 16))
 
 
-def for_files(files):
-    fingerprints = []
-    for file in files:
-        if path.exists("fingerprints/" + replace(file) + "/fingerprint.txt"):
-            print(file + " fingerprint exists - loading it")
-            with open("fingerprints/" + replace(file) + "/fingerprint.txt", "r") as text_file:
-                fingerprint = text_file.read()
-        else:
-            print(file + " fingerprint does not exist - creating it")
-            fingerprint = create_video_fingerprint(file)
-            write_fingerprint(file, fingerprint)
-        fingerprints.append(re.findall("................", fingerprint))
-    # todo use files list to calculate entries and display. temp only
-    for i in range(0, len(files) - 1):
-        print(str(get_start_end(fingerprints[i], fingerprints[i + 1])))
-        # todo check last list element
-
+def get_or_create_fingerprint(file):
+    if path.exists("fingerprints/" + replace(file) + "/fingerprint.txt"):
+        print(file + " fingerprint exists - loading it")
+        with open("fingerprints/" + replace(file) + "/fingerprint.txt", "r") as text_file:
+            fingerprint = text_file.read()
+    else:
+        print(file + " fingerprint does not exist - creating it")
+        fingerprint = create_video_fingerprint(file)
+        write_fingerprint(file, fingerprint)
+    return fingerprint
 
 
 start = datetime.now()
@@ -100,7 +93,7 @@ debug = False
 # 2 sometimes works as good as 1 but not always
 # 3 and further not tested
 sample_frame = 1
-paths = [
+file_paths = [
     'samples/Modern Family (2009) S11E01.mkv',
     'samples/Modern Family (2009) S11E02.mkv',
     'samples/Modern Family (2009) S11E03.mkv',
@@ -108,7 +101,27 @@ paths = [
     'samples/Modern Family (2009) S11E05.mkv',
     'samples/Modern Family (2009) S11E06.mkv',
 ]
-for_files(paths)
+
+futures = []
+fingerprints = []
+for file_path in file_paths:
+    futures.append(executor.submit(get_or_create_fingerprint, file_path))
+
+for future in futures:
+    fingerprints.append(future.result())
+
+counter = 0
+while len(fingerprints) - 1 > counter:
+    start_end = get_start_end(fingerprints[counter], fingerprints[counter + 1])
+    print(file_paths[counter] + " start: " + str(start_end[0][0]) + " end " + str(start_end[0][1]))
+    print(file_paths[counter + 1] + " start: " + str(start_end[1][0]) + " end " + str(start_end[1][1]))
+    counter += 2
+
+if (len(fingerprints) % 2) != 0:
+    start_end = get_start_end(fingerprints[-2], fingerprints[-1])
+    print(file_paths[-1] + " start: " + str(start_end[1][0]) + " end " + str(start_end[1][1]))
+
 end = datetime.now()
 print(end)
 print("duration: " + str(end - start))
+executor.shutdown()
