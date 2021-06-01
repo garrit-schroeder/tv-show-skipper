@@ -9,7 +9,7 @@ import imagehash
 import numpy
 from PIL import Image
 
-executor = ThreadPoolExecutor(max_workers=5)
+executor = ThreadPoolExecutor(max_workers=3)
 
 
 def dict_by_value(dict, value):
@@ -44,7 +44,7 @@ def create_video_fingerprint(path):
         if count % 1000 == 0:
             print(path + " " + str(count) + "/" + str(int(frames / 4)))
         success, frame = video.read()
-        count += sample_frame
+        count += 1
     if video_fingerprint == "":
         raise Exception("video fingerprint empty created " + path)
     return video_fingerprint
@@ -53,7 +53,8 @@ def create_video_fingerprint(path):
 def get_equal_frames(print1, print2):
     equal_frames = []
     for j in range(0, int(len(print1) / 16 / check_frame)):
-        if print1[j * 16 * check_frame:j * 16 * check_frame + 16] == print2[j * 16 * check_frame:j * 16 * check_frame + 16]:
+        if print1[j * 16 * check_frame:j * 16 * check_frame + 16] == print2[
+                                                                     j * 16 * check_frame:j * 16 * check_frame + 16]:
             equal_frames.append(print1[j * 16 * check_frame:j * 16 * check_frame + 16])
     return equal_frames
 
@@ -92,8 +93,8 @@ debug = False
 # 1 works the best
 # 2 sometimes works as good as 1 but not always
 # 3 and further not tested
-sample_frame = 1
-check_frame = 10
+check_frame = 5  # 1 to 10 is fine
+print("Check Frame: " + str(check_frame))
 file_paths = [
     'samples/Modern Family (2009) S11E01.mkv',
     'samples/Modern Family (2009) S11E02.mkv',
@@ -101,6 +102,18 @@ file_paths = [
     'samples/Modern Family (2009) S11E04.mkv',
     'samples/Modern Family (2009) S11E05.mkv',
     'samples/Modern Family (2009) S11E06.mkv',
+    'samples/Modern Family (2009) S11E07.mkv',
+    'samples/Modern Family (2009) S11E08.mkv',
+    'samples/Modern Family (2009) S11E09.mkv',
+    'samples/Modern Family (2009) S11E10.mkv',
+    'samples/Modern Family (2009) S11E11.mkv',
+    'samples/Modern Family (2009) S11E12.mkv',
+    'samples/Modern Family (2009) S11E13.mkv',
+    'samples/Modern Family (2009) S11E14.mkv',
+    'samples/Modern Family (2009) S11E15.mkv',
+    'samples/Modern Family (2009) S11E16.mkv',
+    'samples/Modern Family (2009) S11E17.mkv',
+    'samples/Modern Family (2009) S11E18.mkv',
 ]
 
 futures = []
