@@ -89,11 +89,7 @@ def get_or_create_fingerprint(file):
 start = datetime.now()
 print(start)
 debug = False
-# take every X frame
-# 1 works the best
-# 2 sometimes works as good as 1 but not always
-# 3 and further not tested
-check_frame = 5  # 1 to 10 is fine
+check_frame = 1  # 1 (slow) to 10 (fast) is fine
 print("Check Frame: " + str(check_frame))
 file_paths = [
     'samples/Modern Family (2009) S11E01.mkv',
@@ -125,17 +121,26 @@ for future in futures:
     fingerprints.append(future.result())
 
 counter = 0
+average = 0
 while len(fingerprints) - 1 > counter:
     start_end = get_start_end(fingerprints[counter], fingerprints[counter + 1])
-    print(file_paths[counter] + " start: " + str(start_end[0][0]) + " end " + str(start_end[0][1]))
-    print(file_paths[counter + 1] + " start: " + str(start_end[1][0]) + " end " + str(start_end[1][1]))
+    print(file_paths[counter] + " start: " + str(start_end[0][0] - check_frame + 1) + " end " + str(
+        start_end[0][1] + check_frame - 1))
+    print(file_paths[counter + 1] + " start: " + str(start_end[1][0] - check_frame + 1) + " end " + str(
+        start_end[1][1] + check_frame - 1))
+    average += start_end[0][1] - start_end[0][0]
+    average += start_end[1][1] - start_end[1][0]
     counter += 2
 
 if (len(fingerprints) % 2) != 0:
     start_end = get_start_end(fingerprints[-2], fingerprints[-1])
-    print(file_paths[-1] + " start: " + str(start_end[1][0]) + " end " + str(start_end[1][1]))
+    print(file_paths[-1] + " start: " + str(start_end[1][0] - check_frame + 1) + " end " + str(
+        start_end[1][1] + check_frame - 1))
+    average += start_end[0][1] - start_end[0][0]
+    average += start_end[1][1] - start_end[1][0]
 
 end = datetime.now()
 print(end)
 print("duration: " + str(end - start))
+print("average: " + str(int(average / len(fingerprints))+check_frame*2-2))
 executor.shutdown()
