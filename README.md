@@ -11,7 +11,8 @@ largest common subset of frames with a bit of fuzziness.
 
 ## Disclaimer
 
-Only work if the intro of an episode is similar / identical from episode to episode.
+Only work if the intro of an episode is similar / identical from episode to episode.<br>
+And the intro indeed is the longest sequence in the first quarter of two episodes (should be in all cases)
 
 ## How it works
 Each frame from the first quarter of each episode is extracted and a hash (https://pypi.org/project/ImageHash/) is made on the frame. Each frame hash is added to a long video hash.<br>
