@@ -89,7 +89,7 @@ def get_or_create_fingerprint(file):
 start = datetime.now()
 print(start)
 debug = True
-check_frame = 1  # 1 (slow) to 10 (fast) is fine
+check_frame = 5  # 1 (slow) to 10 (fast) is fine
 print("Check Frame: " + str(check_frame))
 file_paths = [
     'samples/Modern Family (2009) S11E01.mkv',
