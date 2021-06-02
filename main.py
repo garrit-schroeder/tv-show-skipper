@@ -68,7 +68,7 @@ def get_start_end(print1, print2):
         equal_frames = get_equal_frames(print1, print2[k * 16 * check_frame:])
         if len(equal_frames) > len(highest_equal_frames):
             highest_equal_frames = equal_frames
-    p = re.compile(".*?".join(highest_equal_frames))
+    p = re.compile(".{0,2400}?".join(highest_equal_frames))
     search = re.search(p, "".join(print1))
     search2 = re.search(p, "".join(print2))
     return (int(search.start() / 16), int(search.end() / 16)), (int(search2.start() / 16), int(search2.end() / 16))
@@ -88,7 +88,7 @@ def get_or_create_fingerprint(file):
 
 start = datetime.now()
 print(start)
-debug = False
+debug = True
 check_frame = 1  # 1 (slow) to 10 (fast) is fine
 print("Check Frame: " + str(check_frame))
 file_paths = [
