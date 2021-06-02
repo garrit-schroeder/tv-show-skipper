@@ -18,3 +18,11 @@ Each frame from the first quarter of each episode is extracted and a hash (https
 In pairs the longest identical string is searched from two video hashes.<br>
 Assumption: this is the intro
 
+## Improvements
+
+1. Dont extract every frame from video - does not speed up fingerprinting. Seeking in a file is slow
+2. Make educated guesses on which parts to fingerpint. At the moment the first quarter of an episode is fingerprinted. Might be to much for longer episodes. etc.
+3. Create a fingerprint that works for the whole season instead of finding the same fingerprint for every file.
+
+
+
