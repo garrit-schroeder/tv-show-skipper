@@ -1,17 +1,15 @@
 import re
 import os
-from concurrent.futures import ThreadPoolExecutor, process
-from datetime import datetime
-from os import path
-import sys, getopt
-from pathlib import Path
-
 import cv2
 import imagehash
 import numpy
+import sys, getopt
+
+from concurrent.futures import ThreadPoolExecutor, process
+from datetime import datetime, timedelta
+from pathlib import Path
 from PIL import Image
 
-from datetime import timedelta
 
 def dict_by_value(dict, value):
     for name, age in dict.items():
@@ -87,7 +85,7 @@ def get_start_end(print1, print2, check_frame):
 
 
 def get_or_create_fingerprint(file, debug):
-    if path.exists("fingerprints/" + replace(file) + "/fingerprint.txt"):
+    if os.path.exists("fingerprints/" + replace(file) + "/fingerprint.txt"):
         if debug:
             print(file + " fingerprint exists - loading it")
         with open("fingerprints/" + replace(file) + "/fingerprint.txt", "r") as text_file:
@@ -126,7 +124,7 @@ def process_directory(dir, debug=False):
     for future in futures:
         fingerprints.append(future.result())
 
-    print('\n\n')
+    print('\n')
 
     counter = 0
     average = 0
