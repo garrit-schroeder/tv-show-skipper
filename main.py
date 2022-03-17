@@ -82,11 +82,11 @@ def get_equal_frames(print1, print2, check_frame):
 
 def get_start_end(print1, print2, check_frame):
     highest_equal_frames = []
-    for k in range(0, int(len(print1) / 16 / check_frame)):
-        equal_frames = get_equal_frames(print1[-k * 16 * check_frame:], print2, check_frame)
+    for k in range(0, int(len(print1) / 16)):
+        equal_frames = get_equal_frames(print1[-k * 16:], print2, check_frame)
         if len(equal_frames) > len(highest_equal_frames):
             highest_equal_frames = equal_frames
-        equal_frames = get_equal_frames(print1, print2[k * 16 * check_frame:], check_frame)
+        equal_frames = get_equal_frames(print1, print2[k * 16:], check_frame)
         if len(equal_frames) > len(highest_equal_frames):
             highest_equal_frames = equal_frames
     regex_string = ".*?".join(highest_equal_frames) + "){1,}"
@@ -95,6 +95,7 @@ def get_start_end(print1, print2, check_frame):
     search = re.search(p, "".join(print1))
     search2 = re.search(p, "".join(print2))
     return (int(search.start() / 16), int(search.end() / 16)), (int(search2.start() / 16), int(search2.end() / 16))
+
 
 
 def get_or_create_fingerprint(file, debug):
@@ -117,7 +118,7 @@ def process_directory(dir, debug=False):
 
     start = datetime.now()
     print('started at', start)
-    check_frame = 5  # 1 (slow) to 10 (fast) is fine
+    check_frame = 10  # 1 (slow) to 10 (fast) is fine
     print("Check Frame: %s\n" % str(check_frame))
     file_paths = []
     if os.path.isdir(dir):
@@ -142,34 +143,41 @@ def process_directory(dir, debug=False):
     counter = 0
     average = 0
     while len(fingerprints) - 1 > counter:
-        start_end = get_start_end(fingerprints[counter], fingerprints[counter + 1], check_frame)
+        try:
+            start_end = get_start_end(fingerprints[counter], fingerprints[counter + 1], check_frame)
 
-        first_start, first_end = get_timestap_from_frame(file_paths[counter], start_end[0][0] - check_frame + 1, start_end[0][1])
-        #print(file_paths[counter] + " start frame: " + str(start_end[0][0] - check_frame + 1) + " end frame: " + str(
-        #    start_end[0][1]))
-        print(file_paths[counter] + " start time: " + first_start + " end time: " + first_end)
-        
-        second_start, second_end = get_timestap_from_frame(file_paths[counter + 1], start_end[1][0] - check_frame + 1, start_end[1][1])
-        #print(file_paths[counter + 1] + " start frame: " + str(start_end[1][0] - check_frame + 1) + " end frame: " + str(
-        #    start_end[1][1]))
-        print(file_paths[counter + 1] + " start time: " + second_start + " end time: " + second_end)
+            first_start, first_end = get_timestap_from_frame(file_paths[counter], start_end[0][0] - check_frame + 1, start_end[0][1])
+            #print(file_paths[counter] + " start frame: " + str(start_end[0][0] - check_frame + 1) + " end frame: " + str(
+            #    start_end[0][1]))
+            print(file_paths[counter] + " start time: " + first_start + " end time: " + first_end)
+            
+            second_start, second_end = get_timestap_from_frame(file_paths[counter + 1], start_end[1][0] - check_frame + 1, start_end[1][1])
+            #print(file_paths[counter + 1] + " start frame: " + str(start_end[1][0] - check_frame + 1) + " end frame: " + str(
+            #    start_end[1][1]))
+            print(file_paths[counter + 1] + " start time: " + second_start + " end time: " + second_end)
 
-        average += start_end[0][1] - start_end[0][0]
-        average += start_end[1][1] - start_end[1][0]
+            average += start_end[0][1] - start_end[0][0]
+            average += start_end[1][1] - start_end[1][0]
+        except:
+            print("could not compare fingerprints from files " + file_paths[counter] + " " + file_paths[counter + 1])
         counter += 2
+        
 
     if (len(fingerprints) % 2) != 0:
-        start_end = get_start_end(fingerprints[-2], fingerprints[-1], check_frame)
-        first_start, first_end = get_timestap_from_frame(file_paths[-1], start_end[1][0], start_end[1][1])
+        try:
+            start_end = get_start_end(fingerprints[-2], fingerprints[-1], check_frame)
+            first_start, first_end = get_timestap_from_frame(file_paths[-1], start_end[1][0], start_end[1][1])
 
-        #print(file_paths[-1] + " start frame: " + str(start_end[1][0] - check_frame + 1) + " end frame: " + str(
-        #    start_end[1][1]))
-        print(file_paths[counter] + " start time: " + first_start + " end time: " + first_end)
+            #print(file_paths[-1] + " start frame: " + str(start_end[1][0] - check_frame + 1) + " end frame: " + str(
+            #    start_end[1][1]))
+            print(file_paths[counter] + " start time: " + first_start + " end time: " + first_end)
 
-        average += start_end[1][1] - start_end[1][0]
+            average += start_end[1][1] - start_end[1][0]
+        except:
+            print("could not compare fingerprints from files " + file_paths[-2] + " " + file_paths[-1])
 
     end = datetime.now()
-    print(end)
+    print("ended at", end)
     print("duration: " + str(end - start))
     #print("average: " + str(int(average / len(fingerprints)) + check_frame * 2 - 2))
     executor.shutdown()
