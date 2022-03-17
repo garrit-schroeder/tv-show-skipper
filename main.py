@@ -63,11 +63,11 @@ def get_equal_frames(print1, print2):
 
 def get_start_end(print1, print2):
     highest_equal_frames = []
-    for k in range(0, int(len(print1) / 16 / check_frame)):
-        equal_frames = get_equal_frames(print1[-k * 16 * check_frame:], print2)
+    for k in range(0, int(len(print1) / 16)):
+        equal_frames = get_equal_frames(print1[-k * 16:], print2)
         if len(equal_frames) > len(highest_equal_frames):
             highest_equal_frames = equal_frames
-        equal_frames = get_equal_frames(print1, print2[k * 16 * check_frame:])
+        equal_frames = get_equal_frames(print1, print2[k * 16:])
         if len(equal_frames) > len(highest_equal_frames):
             highest_equal_frames = equal_frames
     regex_string = ".*?".join(highest_equal_frames) + "){1,}"
@@ -93,7 +93,7 @@ def get_or_create_fingerprint(file):
 start = datetime.now()
 print(start)
 debug = True
-check_frame = 5  # 1 (slow) to 10 (fast) is fine
+check_frame = 10  # 1 (slow) to 10 (fast) is fine
 max_fingerprint_mins = 10
 print("Check Frame: " + str(check_frame))
 file_paths = [
@@ -119,6 +119,10 @@ file_paths = [
 
 futures = []
 fingerprints = []
+file_paths = [
+    '/media/video/TV-Sendungen/Modern Family (2009)/Staffel 08/Modern Family (2009) S08E01.mkv',
+    '/media/video/TV-Sendungen/Modern Family (2009)/Staffel 08/Modern Family (2009) S08E02.mkv'
+]
 for file_path in file_paths:
     futures.append(executor.submit(get_or_create_fingerprint, file_path))
 
@@ -128,20 +132,27 @@ for future in futures:
 counter = 0
 average = 0
 while len(fingerprints) - 1 > counter:
-    start_end = get_start_end(fingerprints[counter], fingerprints[counter + 1])
-    print(file_paths[counter] + " start frame: " + str(start_end[0][0] - check_frame + 1) + " end frame: " + str(
-        start_end[0][1]))
-    print(file_paths[counter + 1] + " start frame: " + str(start_end[1][0] - check_frame + 1) + " end frame: " + str(
-        start_end[1][1]))
-    average += start_end[0][1] - start_end[0][0]
-    average += start_end[1][1] - start_end[1][0]
+    try:
+        start_end = get_start_end(fingerprints[counter], fingerprints[counter + 1])
+        print(file_paths[counter] + " start frame: " + str(start_end[0][0] - check_frame + 1) + " end frame: " + str(
+            start_end[0][1]))
+        print(
+            file_paths[counter + 1] + " start frame: " + str(start_end[1][0] - check_frame + 1) + " end frame: " + str(
+                start_end[1][1]))
+        average += start_end[0][1] - start_end[0][0]
+        average += start_end[1][1] - start_end[1][0]
+    except:
+        print("could not compare fingerprints from files " + file_paths[counter] + " " + file_paths[counter + 1])
     counter += 2
 
 if (len(fingerprints) % 2) != 0:
-    start_end = get_start_end(fingerprints[-2], fingerprints[-1])
-    print(file_paths[-1] + " start frame: " + str(start_end[1][0] - check_frame + 1) + " end frame: " + str(
-        start_end[1][1]))
-    average += start_end[1][1] - start_end[1][0]
+    try:
+        start_end = get_start_end(fingerprints[-2], fingerprints[-1])
+        print(file_paths[-1] + " start frame: " + str(start_end[1][0] - check_frame + 1) + " end frame: " + str(
+            start_end[1][1]))
+        average += start_end[1][1] - start_end[1][0]
+    except:
+        print("could not compare fingerprints from files " + file_paths[-2] + " " + file_paths[-1])
 
 end = datetime.now()
 print(end)
