@@ -28,24 +28,13 @@ def write_fingerprint(path, fingerprint):
 def replace(s):
     return re.sub('[^A-Za-z0-9]+', '', s)
 
-def get_timestap_from_frame(path, start, end):
-    video = cv2.VideoCapture(path)
-    frame_no = 0
-    start_time = ""
-    end_time = ""
-    while(video.isOpened()):
-        if start_time != "" and end_time != "":
-            break
-        frame_exists, curr_frame = video.read()
-        if frame_exists:
-            if frame_no == start:
-                start_time = str(timedelta(milliseconds=video.get(cv2.CAP_PROP_POS_MSEC))).split('.')[0]
-            if frame_no == end:
-                end_time = str(timedelta(milliseconds=video.get(cv2.CAP_PROP_POS_MSEC))).split('.')[0]
-        else:
-            break
-        frame_no += 1
 
+def get_timestamp_from_frame(path, start, end):
+    video = cv2.VideoCapture(path)
+
+    fps = video.get(cv2.CAP_PROP_FPS)
+    start_time = 0 if start == 0 else round(start / fps)
+    end_time = 0 if end == 0 else round(end / fps)
     video.release()
     return start_time, end_time
 
@@ -97,7 +86,6 @@ def get_start_end(print1, print2, check_frame):
     return (int(search.start() / 16), int(search.end() / 16)), (int(search2.start() / 16), int(search2.end() / 16))
 
 
-
 def get_or_create_fingerprint(file, debug):
     if path.exists("fingerprints/" + replace(file) + "/fingerprint.txt"):
         if debug:
@@ -146,15 +134,21 @@ def process_directory(dir, debug=False):
         try:
             start_end = get_start_end(fingerprints[counter], fingerprints[counter + 1], check_frame)
 
-            first_start, first_end = get_timestap_from_frame(file_paths[counter], start_end[0][0] - check_frame + 1, start_end[0][1])
+            start1_sec, end1_sec = get_timestamp_from_frame(file_paths[counter], start_end[0][0] - check_frame + 1, start_end[0][1])
+            start1_str = str(timedelta(seconds=start1_sec)).split('.')[0]
+            end1_str = str(timedelta(seconds=end1_sec)).split('.')[0]
+
             #print(file_paths[counter] + " start frame: " + str(start_end[0][0] - check_frame + 1) + " end frame: " + str(
             #    start_end[0][1]))
-            print(file_paths[counter] + " start time: " + first_start + " end time: " + first_end)
+            print(file_paths[counter] + " start time: " + start1_str + " end time: " + end1_str)
             
-            second_start, second_end = get_timestap_from_frame(file_paths[counter + 1], start_end[1][0] - check_frame + 1, start_end[1][1])
+            start2_sec, end2_sec = get_timestamp_from_frame(file_paths[counter + 1], start_end[1][0] - check_frame + 1, start_end[1][1])
+            start2_str = str(timedelta(seconds=start2_sec)).split('.')[0]
+            end2_str = str(timedelta(seconds=end2_sec)).split('.')[0]
+
             #print(file_paths[counter + 1] + " start frame: " + str(start_end[1][0] - check_frame + 1) + " end frame: " + str(
             #    start_end[1][1]))
-            print(file_paths[counter + 1] + " start time: " + second_start + " end time: " + second_end)
+            print(file_paths[counter + 1] + " start time: " + start2_str + " end time: " + end2_str)
 
             average += start_end[0][1] - start_end[0][0]
             average += start_end[1][1] - start_end[1][0]
@@ -166,11 +160,13 @@ def process_directory(dir, debug=False):
     if (len(fingerprints) % 2) != 0:
         try:
             start_end = get_start_end(fingerprints[-2], fingerprints[-1], check_frame)
-            first_start, first_end = get_timestap_from_frame(file_paths[-1], start_end[1][0], start_end[1][1])
+            start_sec, end_sec = get_timestamp_from_frame(file_paths[-1], start_end[1][0], start_end[1][1])
+            start_str = str(timedelta(seconds=start_sec)).split('.')[0]
+            end_str = str(timedelta(seconds=end_sec)).split('.')[0]
 
             #print(file_paths[-1] + " start frame: " + str(start_end[1][0] - check_frame + 1) + " end frame: " + str(
             #    start_end[1][1]))
-            print(file_paths[counter] + " start time: " + first_start + " end time: " + first_end)
+            print(file_paths[counter] + " start time: " + start_str + " end time: " + end_str)
 
             average += start_end[1][1] - start_end[1][0]
         except:
@@ -181,6 +177,7 @@ def process_directory(dir, debug=False):
     print("duration: " + str(end - start))
     #print("average: " + str(int(average / len(fingerprints)) + check_frame * 2 - 2))
     executor.shutdown()
+
 
 def main(argv):
 
@@ -206,6 +203,7 @@ def main(argv):
         print('main.py -i <path> -d (debug)\n')
         sys.exit(2)
     process_directory(path, debug)
+
 
 if __name__ == "__main__":
    main(sys.argv[1:])
