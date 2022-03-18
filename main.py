@@ -2,6 +2,7 @@ import re
 import os
 import cv2
 import imagehash
+import shutil
 import numpy
 import sys, getopt
 
@@ -10,6 +11,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from PIL import Image
 
+check_frame = 10  # 1 (slow) to 10 (fast) is fine
 
 def dict_by_value(dict, value):
     for name, age in dict.items():
@@ -27,18 +29,18 @@ def replace(s):
     return re.sub('[^A-Za-z0-9]+', '', s)
 
 
-def get_timestamp_from_frame(path, start, end):
-    video = cv2.VideoCapture(path)
+def get_timestamp_from_frame(profile):
+    start_time = 0 if profile['start_frame'] == 0 else round(profile['start_frame'] / profile['fps'])
+    end_time = 0 if profile['end_frame'] == 0 else round(profile['end_frame'] / profile['fps'])
 
-    fps = video.get(cv2.CAP_PROP_FPS)
-    start_time = 0 if start == 0 else round(start / fps)
-    end_time = 0 if end == 0 else round(end / fps)
-    video.release()
-    return start_time, end_time
+    profile['start_time_ms'] = start_time * 1000
+    profile['end_time_ms'] = end_time * 1000
+    profile['start_time'] = str(timedelta(seconds=start_time)).split('.')[0]
+    profile['end_time'] = str(timedelta(seconds=end_time)).split('.')[0]
 
-def create_video_fingerprint(path, debug):
+def create_video_fingerprint(path, video, debug):
     video_fingerprint = ""
-    video = cv2.VideoCapture(path)
+    
     frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
     sucess, frame = video.read()
     count = 0
@@ -54,11 +56,11 @@ def create_video_fingerprint(path, debug):
         success, frame = video.read()
         count += 1
     if video_fingerprint == "":
-        raise Exception("video fingerprint empty created " + path)
+        raise Exception("error creating fingerprint for video [%s]" % path)
     return video_fingerprint
 
 
-def get_equal_frames(print1, print2, check_frame):
+def get_equal_frames(print1, print2):
     equal_frames = []
     for j in range(0, int(len(print1) / 16 / check_frame)):
         if print1[j * 16 * check_frame:j * 16 * check_frame + 16] == print2[
@@ -67,13 +69,13 @@ def get_equal_frames(print1, print2, check_frame):
     return equal_frames
 
 
-def get_start_end(print1, print2, check_frame):
+def get_start_end(print1, print2):
     highest_equal_frames = []
     for k in range(0, int(len(print1) / 16)):
-        equal_frames = get_equal_frames(print1[-k * 16:], print2, check_frame)
+        equal_frames = get_equal_frames(print1[-k * 16:], print2)
         if len(equal_frames) > len(highest_equal_frames):
             highest_equal_frames = equal_frames
-        equal_frames = get_equal_frames(print1, print2[k * 16:], check_frame)
+        equal_frames = get_equal_frames(print1, print2[k * 16:])
         if len(equal_frames) > len(highest_equal_frames):
             highest_equal_frames = equal_frames
     regex_string = ".*?".join(highest_equal_frames) + "){1,}"
@@ -85,6 +87,13 @@ def get_start_end(print1, print2, check_frame):
 
 
 def get_or_create_fingerprint(file, debug):
+    video = cv2.VideoCapture(file)
+    fps = video.get(cv2.CAP_PROP_FPS)
+
+    profile = {}
+    profile['fps'] = fps
+    profile['path'] = file
+
     if os.path.exists("fingerprints/" + replace(file) + "/fingerprint.txt"):
         if debug:
             print(file + " fingerprint exists - loading it")
@@ -93,18 +102,28 @@ def get_or_create_fingerprint(file, debug):
     else:
         if debug:
             print(file + " fingerprint does not exist - creating it")
-        fingerprint = create_video_fingerprint(file, debug)
+        fingerprint = create_video_fingerprint(file, video, debug)
         write_fingerprint(file, fingerprint)
-    print("finished processing [%s]" % file)
-    return fingerprint
+
+    video.release()
+    print("processed fingerprint for [%s]" % file)
+    return fingerprint, profile
 
 
-def process_directory(dir, debug=False):
+def process_directory(dir=None, debug=False, cleanup=False):
+    if dir == None:
+        return
+    
+    if debug:
+        print('debug enabled')
+    if cleanup:
+        print('fingerprint files will be cleaned up')
+
     executor = ThreadPoolExecutor(max_workers=3)
 
     start = datetime.now()
     print('started at', start)
-    check_frame = 10  # 1 (slow) to 10 (fast) is fine
+    
     print("Check Frame: %s\n" % str(check_frame))
     file_paths = []
     if os.path.isdir(dir):
@@ -117,12 +136,15 @@ def process_directory(dir, debug=False):
     file_paths.sort()
 
     futures = []
+    profiles = []
     fingerprints = []
     for file_path in file_paths:
         futures.append(executor.submit(get_or_create_fingerprint, file_path, debug))
 
     for future in futures:
-        fingerprints.append(future.result())
+        fingerprint, profile = future.result()
+        fingerprints.append(fingerprint)
+        profiles.append(profile)
 
     print('\n')
 
@@ -130,78 +152,77 @@ def process_directory(dir, debug=False):
     average = 0
     while len(fingerprints) - 1 > counter:
         try:
-            start_end = get_start_end(fingerprints[counter], fingerprints[counter + 1], check_frame)
-
-            start1_sec, end1_sec = get_timestamp_from_frame(file_paths[counter], start_end[0][0] - check_frame + 1, start_end[0][1])
-            start1_str = str(timedelta(seconds=start1_sec)).split('.')[0]
-            end1_str = str(timedelta(seconds=end1_sec)).split('.')[0]
-
-            #print(file_paths[counter] + " start frame: " + str(start_end[0][0] - check_frame + 1) + " end frame: " + str(
-            #    start_end[0][1]))
-            print(file_paths[counter] + " start time: " + start1_str + " end time: " + end1_str)
+            start_end = get_start_end(fingerprints[counter], fingerprints[counter + 1])
             
-            start2_sec, end2_sec = get_timestamp_from_frame(file_paths[counter + 1], start_end[1][0] - check_frame + 1, start_end[1][1])
-            start2_str = str(timedelta(seconds=start2_sec)).split('.')[0]
-            end2_str = str(timedelta(seconds=end2_sec)).split('.')[0]
-
-            #print(file_paths[counter + 1] + " start frame: " + str(start_end[1][0] - check_frame + 1) + " end frame: " + str(
-            #    start_end[1][1]))
-            print(file_paths[counter + 1] + " start time: " + start2_str + " end time: " + end2_str)
+            profiles[counter]['start_frame'] = start_end[0][0] - check_frame + 1
+            profiles[counter]['end_frame'] = start_end[0][1]
+            get_timestamp_from_frame(profiles[counter])
+            print(profiles[counter]['path'] + " start time: " + profiles[counter]['start_time'] + " end time: " + profiles[counter]['end_time'])
+            
+            profiles[counter + 1]['start_frame'] = start_end[1][0] - check_frame + 1
+            profiles[counter + 1]['end_frame'] = start_end[1][1]
+            get_timestamp_from_frame(profiles[counter + 1])
+            print(profiles[counter + 1]['path'] + " start time: " + profiles[counter + 1]['start_time'] + " end time: " + profiles[counter + 1]['end_time'])
 
             average += start_end[0][1] - start_end[0][0]
             average += start_end[1][1] - start_end[1][0]
         except:
-            print("could not compare fingerprints from files " + file_paths[counter] + " " + file_paths[counter + 1])
+            print("could not compare fingerprints from files " + profiles[counter]['path'] + " " + profiles[counter + 1]['path'])
         counter += 2
         
 
     if (len(fingerprints) % 2) != 0:
         try:
-            start_end = get_start_end(fingerprints[-2], fingerprints[-1], check_frame)
-            start_sec, end_sec = get_timestamp_from_frame(file_paths[-1], start_end[1][0], start_end[1][1])
-            start_str = str(timedelta(seconds=start_sec)).split('.')[0]
-            end_str = str(timedelta(seconds=end_sec)).split('.')[0]
+            start_end = get_start_end(fingerprints[-2], fingerprints[-1])
 
-            #print(file_paths[-1] + " start frame: " + str(start_end[1][0] - check_frame + 1) + " end frame: " + str(
-            #    start_end[1][1]))
-            print(file_paths[counter] + " start time: " + start_str + " end time: " + end_str)
+            profiles[-1]['start_frame'] = start_end[1][0] - check_frame + 1
+            profiles[-1]['end_frame'] = start_end[1][1]
+            get_timestamp_from_frame(profiles[-1])
+            print(profiles[-1]['path'] + " start time: " + profiles[-1]['start_time'] + " end time: " + profiles[-1]['end_time'])
 
             average += start_end[1][1] - start_end[1][0]
         except:
-            print("could not compare fingerprints from files " + file_paths[-2] + " " + file_paths[-1])
+            print("could not compare fingerprints from files " + profiles[-2]['path'] + " " + profiles[-1]['path'])
 
     end = datetime.now()
     print("ended at", end)
     print("duration: " + str(end - start))
     #print("average: " + str(int(average / len(fingerprints)) + check_frame * 2 - 2))
     executor.shutdown()
-
+    if cleanup and os.path.isdir('fingerprints'):
+        try:
+            shutil.rmtree('fingerprints')
+        except OSError as e:
+            print("Error: %s : %s" % ('fingerprints', e.strerror))
+    
 
 def main(argv):
 
     path = ''
     debug = False
-
+    cleanup = False
     try:
-        opts, args = getopt.getopt(argv,"hi:d")
+        opts, args = getopt.getopt(argv,"hi:dc")
     except getopt.GetoptError:
-        print('main.py -i <path> -d (debug)\n')
+        print('main.py -i <path> -d (debug) -c (cleanup)\n')
         sys.exit(2)
 
     for opt, arg in opts:
         if opt == '-h':
-            print('main.py -i <path> -d (debug)\n')
+            print('main.py -i <path> -d (debug) -c (cleanup)\n')
             sys.exit()
         elif opt == '-i':
             path = arg
         elif opt == '-d':
             debug = True
+        elif opt == '-c':
+            cleanup = True
 
     if path == '' or not os.path.isdir(path):
-        print('main.py -i <path> -d (debug)\n')
+        print('main.py -i <path> -d (debug) -c (cleanup)\n')
         sys.exit(2)
-    process_directory(path, debug)
 
+    process_directory(dir=path, debug=debug, cleanup=cleanup)
 
 if __name__ == "__main__":
    main(sys.argv[1:])
