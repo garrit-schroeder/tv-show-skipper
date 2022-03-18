@@ -194,7 +194,7 @@ def process_directory(dir=None, debug=False, cleanup=False):
             shutil.rmtree('fingerprints')
         except OSError as e:
             print("Error: %s : %s" % ('fingerprints', e.strerror))
-    
+    return profiles
 
 def main(argv):
 
@@ -204,12 +204,12 @@ def main(argv):
     try:
         opts, args = getopt.getopt(argv,"hi:dc")
     except getopt.GetoptError:
-        print('main.py -i <path> -d (debug) -c (cleanup)\n')
+        print('decode.py -i <path> -d (debug) -c (cleanup)\n')
         sys.exit(2)
 
     for opt, arg in opts:
         if opt == '-h':
-            print('main.py -i <path> -d (debug) -c (cleanup)\n')
+            print('decode.py -i <path> -d (debug) -c (cleanup)\n')
             sys.exit()
         elif opt == '-i':
             path = arg
@@ -219,7 +219,7 @@ def main(argv):
             cleanup = True
 
     if path == '' or not os.path.isdir(path):
-        print('main.py -i <path> -d (debug) -c (cleanup)\n')
+        print('decode.py -i <path> -d (debug) -c (cleanup)\n')
         sys.exit(2)
 
     process_directory(dir=path, debug=debug, cleanup=cleanup)

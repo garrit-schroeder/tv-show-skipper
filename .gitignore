@@ -1,4 +1,7 @@
 .idea
+__pycache__/
+*.py[cod]
+cred.json
 venv
 samples
 fingerprints
