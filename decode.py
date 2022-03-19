@@ -119,10 +119,17 @@ def get_or_create_fingerprint(file, debug):
         print_debug("processed fingerprint for [%s]" % file)
     return fingerprint, profile
 
+def check_files_exist(file_paths = []):
+    if not file_paths:
+        return False
+    for file in file_paths:
+        if not os.path.exists(file):
+            return False
+    return True
 
 def process_directory(file_paths = [], debug=False, cleanup=True):
-    if not file_paths:
-        print_debug('input directory invalid or cannot be accessed')
+    if not check_files_exist(file_paths):
+        print_debug('input files invalid or cannot be accessed')
         return {}
 
     start = datetime.now()

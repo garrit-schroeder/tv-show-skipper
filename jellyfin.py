@@ -1,6 +1,8 @@
 import os
 import jellyfin_queries
+import json
 
+from pathlib import Path
 from datetime import datetime, timedelta
 from jellyfin_api_client import jellyfin_login, jellyfin_logout
 from decode import process_directory
@@ -39,6 +41,46 @@ def get_jellyfin_shows():
 
     return shows
 
+def save_season_json(season = None, result = None):
+    if not result or result == None or season == None:
+        return
+    path = "jellyfin_cache/" + str(season['SeriesId']) + "/" + str(season['SeasonId'])
+    if not os.path.exists(path):
+        print('path doesn\'t exist')
+        return
+
+    for ndx in range(0, len(season['episodes'])):
+        if ndx >= len(result):
+            print('episode index past bounds of result')
+            break
+        if season['episodes'][ndx]['Path'] == result[ndx]['path']:
+            season['episodes'][ndx].update(result[ndx])
+            season['episodes'][ndx]['created'] = datetime.now()
+            season['episodes'][ndx].pop('path', None)
+            with open(os.path.join(path, season['episodes'][ndx]['EpisodeId'] + '.json'), "w+") as json_file:
+                json.dump(season['episodes'][ndx], json_file, indent = 4)
+        else:
+            print('index mismatch')
+
+def check_json_cache(season = None):
+    path = "jellyfin_cache/" + str(season['SeriesId']) + "/" + str(season['SeasonId'])
+
+    file_paths = []
+
+    if not os.path.exists(path):
+        Path(path).mkdir(parents=True, exist_ok=True)
+    else:
+        filtered_episodes = []
+        for episode in season['episodes']:
+            if not os.path.exists(os.path.join(path, episode['EpisodeId'] + '.json')):
+                filtered_episodes.append(episode)
+        print('processing %s of %s episodes' % (len(filtered_episodes), len(season['episodes'])))
+        season['episodes'] = filtered_episodes
+
+    for episode in season['episodes']:
+        file_paths.append(episode['Path'])
+    return file_paths
+
 def process_jellyfin_shows():
     start = datetime.now()
 
@@ -51,12 +93,11 @@ def process_jellyfin_shows():
             print(season['Name'])
             season_start_time = datetime.now()
 
-            file_paths = []
-            for episode in season['episodes']:
-                if 'Path' in episode:
-                    file_paths.append(episode['Path'])
+            file_paths = check_json_cache(season)
             result = process_directory(file_paths=file_paths)
-
+            print(result)
+            if result:
+                save_season_json(season, result)
             season_end_time = datetime.now()
             print('processed season [%s] in %s' % (season['Name'], str(season_end_time - season_start_time)))
 

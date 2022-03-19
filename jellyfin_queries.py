@@ -93,8 +93,9 @@ def get_episodes(client = None, path_map = [], season = None):
                 episode['SeriesId'] = season['SeriesId']
                 episode['SeasonId'] = season['SeasonId']
                 episode['EpisodeId'] = item['Id']
-                episode['Path'] = map_path(item['Path'], path_map) if 'Path' in item else None
-                episodes.append(episode)
+                if 'Path' in item:
+                    episode['Path'] = map_path(item['Path'], path_map)
+                    episodes.append(episode)
     except:
         return []
     #print('found %s episodes' % len(episodes))
