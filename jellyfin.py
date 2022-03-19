@@ -3,6 +3,7 @@ import sys, getopt
 import jellyfin_queries
 import json
 
+from time import sleep
 from pathlib import Path
 from datetime import datetime, timedelta
 from jellyfin_api_client import jellyfin_login, jellyfin_logout
@@ -108,6 +109,7 @@ def process_jellyfin_shows(debug = False, save_json=False, slow_mode=False):
                     print_debug('no results - the decoder may not have access to the specified media files')
             season_end_time = datetime.now()
             print_debug('processed season [%s] in %s' % (season['Name'], str(season_end_time - season_start_time)))
+            sleep(2)
 
         show_end_time = datetime.now()
         print_debug('processed show [%s] in %s' % (show['Name'], str(show_end_time - show_start_time)))
