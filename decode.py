@@ -12,7 +12,8 @@ from pathlib import Path
 from PIL import Image
 
 check_frame = 10  # 1 (slow) to 10 (fast) is fine 
- 
+workers = 3 # number of executors to use
+
 def print_debug(*a):
     # Here a is the array holding the objects
     # passed as the argument of the function
@@ -129,7 +130,7 @@ def process_directory(file_paths = [], debug=False, cleanup=False):
     if cleanup:
         print_debug('fingerprint files will be cleaned up')
 
-    executor = ThreadPoolExecutor(max_workers=3)
+    executor = ThreadPoolExecutor(max_workers=workers)
 
     futures = []
     profiles = []
