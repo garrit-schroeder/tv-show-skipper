@@ -94,10 +94,11 @@ def process_jellyfin_shows():
             season_start_time = datetime.now()
 
             file_paths = check_json_cache(season)
-            result = process_directory(file_paths=file_paths)
-            print(result)
-            if result:
-                save_season_json(season, result)
+            if file_paths:
+                result = process_directory(file_paths=file_paths)
+                print(result)
+                if result:
+                    save_season_json(season, result)
             season_end_time = datetime.now()
             print('processed season [%s] in %s' % (season['Name'], str(season_end_time - season_start_time)))
 
