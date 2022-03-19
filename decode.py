@@ -130,71 +130,69 @@ def process_directory(file_paths = [], debug=False, cleanup=False):
     if cleanup:
         print_debug('fingerprint files will be cleaned up')
 
-    executor = ThreadPoolExecutor(max_workers=workers)
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = []
+        profiles = []
+        fingerprints = []
+        for file_path in file_paths:
+            futures.append(executor.submit(get_or_create_fingerprint, file_path, debug))
 
-    futures = []
-    profiles = []
-    fingerprints = []
-    for file_path in file_paths:
-        futures.append(executor.submit(get_or_create_fingerprint, file_path, debug))
+        for future in futures:
+            fingerprint, profile = future.result()
+            fingerprints.append(fingerprint)
+            profiles.append(profile)
 
-    for future in futures:
-        fingerprint, profile = future.result()
-        fingerprints.append(fingerprint)
-        profiles.append(profile)
+        counter = 0
+        average = 0
+        while len(fingerprints) - 1 > counter:
+            try:
+                start_end = get_start_end(fingerprints[counter], fingerprints[counter + 1])
+                
+                profiles[counter]['start_frame'] = start_end[0][0] - check_frame + 1
+                profiles[counter]['end_frame'] = start_end[0][1]
+                get_timestamp_from_frame(profiles[counter])
+                if debug:
+                    print_debug(profiles[counter]['path'] + " start time: " + profiles[counter]['start_time'] + " end time: " + profiles[counter]['end_time'])
+                
+                profiles[counter + 1]['start_frame'] = start_end[1][0] - check_frame + 1
+                profiles[counter + 1]['end_frame'] = start_end[1][1]
+                get_timestamp_from_frame(profiles[counter + 1])
+                if debug:
+                    print_debug(profiles[counter + 1]['path'] + " start time: " + profiles[counter + 1]['start_time'] + " end time: " + profiles[counter + 1]['end_time'])
 
-    counter = 0
-    average = 0
-    while len(fingerprints) - 1 > counter:
-        try:
-            start_end = get_start_end(fingerprints[counter], fingerprints[counter + 1])
+                average += start_end[0][1] - start_end[0][0]
+                average += start_end[1][1] - start_end[1][0]
+            except:
+                print_debug("could not compare fingerprints from files " + profiles[counter]['path'] + " " + profiles[counter + 1]['path'])
+            counter += 2
             
-            profiles[counter]['start_frame'] = start_end[0][0] - check_frame + 1
-            profiles[counter]['end_frame'] = start_end[0][1]
-            get_timestamp_from_frame(profiles[counter])
-            if debug:
-                print_debug(profiles[counter]['path'] + " start time: " + profiles[counter]['start_time'] + " end time: " + profiles[counter]['end_time'])
-            
-            profiles[counter + 1]['start_frame'] = start_end[1][0] - check_frame + 1
-            profiles[counter + 1]['end_frame'] = start_end[1][1]
-            get_timestamp_from_frame(profiles[counter + 1])
-            if debug:
-                print_debug(profiles[counter + 1]['path'] + " start time: " + profiles[counter + 1]['start_time'] + " end time: " + profiles[counter + 1]['end_time'])
 
-            average += start_end[0][1] - start_end[0][0]
-            average += start_end[1][1] - start_end[1][0]
-        except:
-            print_debug("could not compare fingerprints from files " + profiles[counter]['path'] + " " + profiles[counter + 1]['path'])
-        counter += 2
-        
+        if (len(fingerprints) % 2) != 0:
+            try:
+                start_end = get_start_end(fingerprints[-2], fingerprints[-1])
 
-    if (len(fingerprints) % 2) != 0:
-        try:
-            start_end = get_start_end(fingerprints[-2], fingerprints[-1])
+                profiles[-1]['start_frame'] = start_end[1][0] - check_frame + 1
+                profiles[-1]['end_frame'] = start_end[1][1]
+                get_timestamp_from_frame(profiles[-1])
+                if debug:
+                    print_debug(profiles[-1]['path'] + " start time: " + profiles[-1]['start_time'] + " end time: " + profiles[-1]['end_time'])
 
-            profiles[-1]['start_frame'] = start_end[1][0] - check_frame + 1
-            profiles[-1]['end_frame'] = start_end[1][1]
-            get_timestamp_from_frame(profiles[-1])
-            if debug:
-                print_debug(profiles[-1]['path'] + " start time: " + profiles[-1]['start_time'] + " end time: " + profiles[-1]['end_time'])
+                average += start_end[1][1] - start_end[1][0]
+            except:
+                print_debug("could not compare fingerprints from files " + profiles[-2]['path'] + " " + profiles[-1]['path'])
 
-            average += start_end[1][1] - start_end[1][0]
-        except:
-            print_debug("could not compare fingerprints from files " + profiles[-2]['path'] + " " + profiles[-1]['path'])
+        end = datetime.now()
+        if debug:
+            print_debug("average: " + str(int(average / len(fingerprints)) + check_frame * 2 - 2))
+            print_debug("ended at", end)
+            print_debug("duration: " + str(end - start))
 
-    end = datetime.now()
-    if debug:
-        print_debug("average: " + str(int(average / len(fingerprints)) + check_frame * 2 - 2))
-        print_debug("ended at", end)
-        print_debug("duration: " + str(end - start))
-
-    executor.shutdown()
-    if cleanup and os.path.isdir('fingerprints'):
-        try:
-            shutil.rmtree('fingerprints')
-        except OSError as e:
-            print_debug("Error: %s : %s" % ('fingerprints', e.strerror))
-    return profiles
+        if cleanup and os.path.isdir('fingerprints'):
+            try:
+                shutil.rmtree('fingerprints')
+            except OSError as e:
+                print_debug("Error: %s : %s" % ('fingerprints', e.strerror))
+        return profiles
 
 def main(argv):
 
