@@ -68,7 +68,7 @@ def save_season(season = None, result = None, save_json = False, debug = False):
         elif debug:
             print_debug('index mismatch')
 
-def check_json_cache(season = None, debug = False):
+def check_json_cache(season = None):
     path = "jellyfin_cache/" + str(season['SeriesId']) + "/" + str(season['SeasonId'])
 
     file_paths = []
@@ -80,8 +80,7 @@ def check_json_cache(season = None, debug = False):
         for episode in season['episodes']:
             if not os.path.exists(os.path.join(path, episode['EpisodeId'] + '.json')):
                 filtered_episodes.append(episode)
-        if debug:
-            print_debug('processing %s of %s episodes' % (len(filtered_episodes), len(season['episodes'])))
+        print_debug('processing %s of %s episodes' % (len(filtered_episodes), len(season['episodes'])))
         season['episodes'] = filtered_episodes
 
     for episode in season['episodes']:
@@ -93,31 +92,28 @@ def process_jellyfin_shows(debug = False, save_json=False):
 
     shows = get_jellyfin_shows()
     for show in shows:
-        if debug:
-            print_debug(show['Name'])
+        print_debug(show['Name'])
         show_start_time = datetime.now()
 
         for season in show['seasons']:
-            if debug:
-                print_debug(season['Name'])
+            print_debug(season['Name'])
             season_start_time = datetime.now()
 
-            file_paths = check_json_cache(season, debug)
+            file_paths = check_json_cache(season)
             if file_paths:
                 result = process_directory(file_paths=file_paths, debug=debug)
                 if result:
                     save_season(season, result, save_json, debug)
+                else:
+                    print_debug('no results - the decoder may not have access to the specified media files')
             season_end_time = datetime.now()
-            if debug:
-                print_debug('processed season [%s] in %s' % (season['Name'], str(season_end_time - season_start_time)))
+            print_debug('processed season [%s] in %s' % (season['Name'], str(season_end_time - season_start_time)))
 
         show_end_time = datetime.now()
-        if debug:
-            print_debug('processed show [%s] in %s' % (show['Name'], str(show_end_time - show_start_time)))
+        print_debug('processed show [%s] in %s' % (show['Name'], str(show_end_time - show_start_time)))
 
     end = datetime.now()
-    if debug:
-        print_debug("total runtime: " + str(end - start))
+    print_debug("total runtime: " + str(end - start))
 
 def main(argv):
     debug = False
