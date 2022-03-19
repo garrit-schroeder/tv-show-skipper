@@ -6,6 +6,7 @@ import shutil
 import numpy
 import sys, getopt
 
+from time import sleep
 from concurrent.futures import ThreadPoolExecutor, process
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -45,7 +46,7 @@ def get_timestamp_from_frame(profile):
     profile['start_time'] = str(timedelta(seconds=start_time)).split('.')[0]
     profile['end_time'] = str(timedelta(seconds=end_time)).split('.')[0]
 
-def create_video_fingerprint(path, video, debug):
+def create_video_fingerprint(path, video, debug, slow_mode):
     video_fingerprint = ""
     
     frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -64,6 +65,8 @@ def create_video_fingerprint(path, video, debug):
         #    print_debug(path + " " + str(count) + "/" + str(int(frames / 4)))
         success, frame = video.read()
         count += 1
+        if slow_mode:
+            sleep(0.005)
     if video_fingerprint == "":
         raise Exception("error creating fingerprint for video [%s]" % path)
     return video_fingerprint
@@ -95,7 +98,7 @@ def get_start_end(print1, print2):
     return (int(search.start() / 16), int(search.end() / 16)), (int(search2.start() / 16), int(search2.end() / 16))
 
 
-def get_or_create_fingerprint(file, debug):
+def get_or_create_fingerprint(file, debug, slow_mode):
     video = cv2.VideoCapture(file)
     fps = video.get(cv2.CAP_PROP_FPS)
 
@@ -111,7 +114,7 @@ def get_or_create_fingerprint(file, debug):
     else:
         if debug:
             print_debug('creating new fingerprint for [%s]' % file)
-        fingerprint = create_video_fingerprint(file, video, debug)
+        fingerprint = create_video_fingerprint(file, video, debug, slow_mode)
         write_fingerprint(file, fingerprint)
 
     video.release()
@@ -127,12 +130,7 @@ def check_files_exist(file_paths = []):
             return False
     return True
 
-def process_directory(file_paths = [], debug=False, cleanup=True):
-    if not check_files_exist(file_paths):
-        if debug:
-            print_debug('input files invalid or cannot be accessed')
-        return {}
-
+def process_directory(file_paths = [], debug=False, cleanup=True, slow_mode=False):
     start = datetime.now()
     if debug:
         print_debug('started at', start)
@@ -140,13 +138,20 @@ def process_directory(file_paths = [], debug=False, cleanup=True):
         print_debug("Check Frame: %s\n" % str(check_frame))
         if cleanup:
             print_debug('fingerprint files will be cleaned up')
+        if slow_mode:
+            print_debug('slow mode enabled')
+
+    if not check_files_exist(file_paths):
+        if debug:
+            print_debug('input files invalid or cannot be accessed')
+        return {}
 
     with ThreadPoolExecutor(max_workers=workers) as executor:
         futures = []
         profiles = []
         fingerprints = []
         for file_path in file_paths:
-            futures.append(executor.submit(get_or_create_fingerprint, file_path, debug))
+            futures.append(executor.submit(get_or_create_fingerprint, file_path, debug, slow_mode))
 
         for future in futures:
             fingerprint, profile = future.result()
@@ -217,15 +222,16 @@ def main(argv):
     path = ''
     debug = False
     cleanup = False
+    slow_mode = False
     try:
         opts, args = getopt.getopt(argv,"hi:dc")
     except getopt.GetoptError:
-        print_debug('decode.py -i <path> -d (debug) -c (cleanup)\n')
+        print_debug('decode.py -i <path> -d (debug) -c (cleanup) -s (slow mode)\n')
         sys.exit(2)
 
     for opt, arg in opts:
         if opt == '-h':
-            print_debug('decode.py -i <path> -d (debug) -c (cleanup)\n')
+            print_debug('decode.py -i <path> -d (debug) -c (cleanup) -s (slow mode)\n')
             sys.exit()
         elif opt == '-i':
             path = arg
@@ -233,9 +239,11 @@ def main(argv):
             debug = True
         elif opt == '-c':
             cleanup = True
+        elif opt == '-s':
+            slow_mode = True
 
     if path == '' or not os.path.isdir(path):
-        print_debug('decode.py -i <path> -d (debug) -c (cleanup)\n')
+        print_debug('decode.py -i <path> -d (debug) -c (cleanup) -s (slow mode)\n')
         sys.exit(2)
 
     file_paths = []
@@ -249,7 +257,7 @@ def main(argv):
     else:
         print_debug('input directory invalid or cannot be accessed')
         return {}
-    result = process_directory(file_paths=file_paths, debug=debug, cleanup=cleanup)
+    result = process_directory(file_paths=file_paths, debug=debug, cleanup=cleanup, slow_mode=slow_mode)
     print(result)
 
 if __name__ == "__main__":

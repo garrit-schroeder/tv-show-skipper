@@ -87,7 +87,7 @@ def check_json_cache(season = None):
         file_paths.append(episode['Path'])
     return file_paths
 
-def process_jellyfin_shows(debug = False, save_json=False):
+def process_jellyfin_shows(debug = False, save_json=False, slow_mode=False):
     start = datetime.now()
 
     shows = get_jellyfin_shows()
@@ -101,7 +101,7 @@ def process_jellyfin_shows(debug = False, save_json=False):
 
             file_paths = check_json_cache(season)
             if file_paths:
-                result = process_directory(file_paths=file_paths, debug=debug)
+                result = process_directory(file_paths=file_paths, debug=debug, slow_mode=slow_mode)
                 if result:
                     save_season(season, result, save_json, debug)
                 else:
@@ -118,28 +118,33 @@ def process_jellyfin_shows(debug = False, save_json=False):
 def main(argv):
     debug = False
     save_json = False
+    slow_mode = False
 
     try:
-        opts, args = getopt.getopt(argv,"hdj")
+        opts, args = getopt.getopt(argv,"hdjs")
     except getopt.GetoptError:
-        print_debug('jellyfin.py -d (debug) -j (save json)')
+        print_debug('jellyfin.py -d (debug) -j (save json) -s (slow mode)')
+        print_debug('use -s (slow mode) to limit cpu use')
         print_debug('saving to json is currently the only way to skip previously processed files in subsequent runs\n')
         sys.exit(2)
 
     for opt, arg in opts:
         if opt == '-h':
-            print_debug('jellyfin.py -d (debug) -j (save json)')
+            print_debug('jellyfin.py -d (debug) -j (save json) -s (slow mode)')
+            print_debug('use -s (slow mode) to limit cpu use')
             print_debug('saving to json is currently the only way to skip previously processed files in subsequent runs\n')
             sys.exit()
         elif opt == '-d':
             debug = True
         elif opt == '-j':
             save_json = True
+        elif opt == '-s':
+            slow_mode = True
     
     if server_url == '' or server_username == '' or server_password == '':
         print_debug('you need to export env variables: JELLYFIN_URL, JELLYFIN_USERNAME, JELLYFIN_PASSWORD\n')
 
-    process_jellyfin_shows(debug, save_json)
+    process_jellyfin_shows(debug, save_json, slow_mode)
 
 if __name__ == "__main__":
    main(sys.argv[1:])
