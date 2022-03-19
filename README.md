@@ -25,6 +25,9 @@ Each frame from the first quarter of each episode is extracted and a hash (https
 In pairs the longest identical string is searched from two video hashes.<br>
 Assumption: this is the intro
 
+## Troubleshooting
+If the script is killed while processing media you may encounter issues the next time you run it. This is because corrupt `fingerprint` files are likely left over from the killed session. Simply remove the directory `fingerprints` before running the script again. The same can be done for `jellyfin_cache` though it is less likely to become corrupted
+
 ## Improvements
 
 1. Dont extract every frame from video - does not speed up fingerprinting. Seeking in a file is slow
