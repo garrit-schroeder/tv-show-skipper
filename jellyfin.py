@@ -120,8 +120,6 @@ def process_jellyfin_shows(debug = False, save_json=False):
         print_debug("total runtime: " + str(end - start))
 
 def main(argv):
-
-    path = ''
     debug = False
     save_json = False
 
@@ -137,8 +135,6 @@ def main(argv):
             print_debug('jellyfin.py -d (debug) -j (save json)')
             print_debug('saving to json is currently the only way to skip previously processed files in subsequent runs\n')
             sys.exit()
-        elif opt == '-i':
-            path = arg
         elif opt == '-d':
             debug = True
         elif opt == '-j':
