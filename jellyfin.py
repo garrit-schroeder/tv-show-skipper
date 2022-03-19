@@ -55,7 +55,7 @@ def save_season_json(season = None, result = None):
             break
         if season['episodes'][ndx]['Path'] == result[ndx]['path']:
             season['episodes'][ndx].update(result[ndx])
-            season['episodes'][ndx]['created'] = datetime.now()
+            season['episodes'][ndx]['created'] = str(datetime.now())
             season['episodes'][ndx].pop('path', None)
             with open(os.path.join(path, season['episodes'][ndx]['EpisodeId'] + '.json'), "w+") as json_file:
                 json.dump(season['episodes'][ndx], json_file, indent = 4)
