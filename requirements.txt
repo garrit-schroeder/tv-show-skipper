@@ -1,3 +1,14 @@
-opencv-python
-pillow
-imagehash
+certifi==2021.10.8
+charset-normalizer==2.0.12
+idna==3.3
+ImageHash==4.2.1
+jellyfin-apiclient-python==1.8.1
+numpy==1.22.3
+opencv-python==4.5.5.64
+Pillow==9.0.1
+PyWavelets==1.3.0
+requests==2.27.1
+scipy==1.8.0
+six==1.16.0
+urllib3==1.26.9
+websocket-client==1.3.1
