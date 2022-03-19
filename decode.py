@@ -129,16 +129,17 @@ def check_files_exist(file_paths = []):
 
 def process_directory(file_paths = [], debug=False, cleanup=True):
     if not check_files_exist(file_paths):
-        print_debug('input files invalid or cannot be accessed')
+        if debug:
+            print_debug('input files invalid or cannot be accessed')
         return {}
 
     start = datetime.now()
-    print_debug('started at', start)
     if debug:
+        print_debug('started at', start)
         print_debug('debug enabled')
         print_debug("Check Frame: %s\n" % str(check_frame))
-    if cleanup:
-        print_debug('fingerprint files will be cleaned up')
+        if cleanup:
+            print_debug('fingerprint files will be cleaned up')
 
     with ThreadPoolExecutor(max_workers=workers) as executor:
         futures = []
@@ -177,7 +178,8 @@ def process_directory(file_paths = [], debug=False, cleanup=True):
                 average += start_end[0][1] - start_end[0][0]
                 average += start_end[1][1] - start_end[1][0]
             except:
-                print_debug("could not compare fingerprints from files " + profiles[counter]['path'] + " " + profiles[counter + 1]['path'])
+                if debug:
+                    print_debug("could not compare fingerprints from files " + profiles[counter]['path'] + " " + profiles[counter + 1]['path'])
             counter += 2
             
 
@@ -200,8 +202,8 @@ def process_directory(file_paths = [], debug=False, cleanup=True):
         end = datetime.now()
         if debug:
             print_debug("average: " + str(int(average / len(fingerprints)) + check_frame * 2 - 2))
-        print_debug("ended at", end)
-        print_debug("duration: " + str(end - start))
+            print_debug("ended at", end)
+            print_debug("duration: " + str(end - start))
 
         if cleanup and os.path.isdir('fingerprints'):
             try:
