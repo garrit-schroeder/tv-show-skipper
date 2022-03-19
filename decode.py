@@ -159,12 +159,16 @@ def process_directory(file_paths = [], debug=False, cleanup=True):
                 start_end = get_start_end(fingerprints[counter], fingerprints[counter + 1])
                 
                 profiles[counter]['start_frame'] = start_end[0][0] - check_frame + 1
+                if profiles[counter]['start_frame'] < 0:
+                    profiles[counter]['start_frame'] = 0
                 profiles[counter]['end_frame'] = start_end[0][1]
                 get_timestamp_from_frame(profiles[counter])
                 if debug:
                     print_debug(profiles[counter]['path'] + " start time: " + profiles[counter]['start_time'] + " end time: " + profiles[counter]['end_time'])
                 
                 profiles[counter + 1]['start_frame'] = start_end[1][0] - check_frame + 1
+                if profiles[counter + 1]['start_frame'] < 0:
+                    profiles[counter + 1]['start_frame'] = 0
                 profiles[counter + 1]['end_frame'] = start_end[1][1]
                 get_timestamp_from_frame(profiles[counter + 1])
                 if debug:
@@ -182,6 +186,8 @@ def process_directory(file_paths = [], debug=False, cleanup=True):
                 start_end = get_start_end(fingerprints[-2], fingerprints[-1])
 
                 profiles[-1]['start_frame'] = start_end[1][0] - check_frame + 1
+                if profiles[-1]['start_frame'] < 0:
+                    profiles[-1]['start_frame'] = 0
                 profiles[-1]['end_frame'] = start_end[1][1]
                 get_timestamp_from_frame(profiles[-1])
                 if debug:
