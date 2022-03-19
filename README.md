@@ -7,7 +7,7 @@ largest common subset of frames with a bit of fuzziness.
 
 1. Install dependencies from `requirements.txt`
 2. To use with Jellyfin, run `jellyfin.py`. This will query Jellyfin for a list of series and their paths. By default the query to the server is limited to 1 series (for testing reasons). Comment out `'Limit': 1` in `jellyfin_queries.py` to remove this limit.
-3. To process a directory manually, run `decode.py` and pass the parameter `-i` with the absolute path to at least **two** episodes of the same season
+3. To process a directory manually, run `decode.py` and pass the parameter `-i` with the path to a directory containing at least **two** episodes of the same season
 
 By default there is little/no output to stdout or stderr until the script has finished processing some media. Run `jellyfin.py` or `decode.py` with the `-d` parameter for verbose output
 
