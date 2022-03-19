@@ -13,65 +13,90 @@ def map_path(path, path_map):
 
 def get_shows(client = None, path_map = []):
     if client == None:
-        return False
+        return []
 
-    result = client.jellyfin.user_items(params={
-                'Recursive': True,
-                'includeItemTypes': (
-                    "Series"
-                ),
-                'enableImages': False,
-                'enableUserData': False,
+    shows = []
+
+    try:
+        result = client.jellyfin.user_items(params={
+                    'Recursive': True,
+                    'includeItemTypes': (
+                        "Series"
+                    ),
+                    'enableImages': False,
+                    'enableUserData': False,
+                    'Fields': (
+                        "ProviderIds",
+                        "Path"
+                    ),
+                    # added this limit for safety in case someone runs this without understanding what it does
+                    # remove the limit to process all shows
+                    'Limit': 1
+                })
+
+        if 'Items' in result and result['Items']:
+            for item in result['Items']:
+                show = {}
+                show['Name'] = item['Name']
+                show['SeriesId'] = item['Id']
+                show['Path'] = map_path(item['Path'], path_map) if 'Path' in item else None
+                shows.append(show)
+                sleep(0.2)
+    except:
+        return []
+    #print('found %s shows' % len(shows))
+    return shows
+
+def get_seasons(client = None, path_map = [], series = None):
+    if client == None or series == None:
+        return []
+
+    seasons = []
+
+    try:
+        result = client.jellyfin.get_seasons(series['SeriesId'])
+
+        if 'Items' in result and result['Items']:
+            for item in result['Items']:
+                season = {}
+                season['Name'] = item['Name']
+                season['SeriesId'] = series['SeriesId']
+                season['SeasonId'] = item['Id']
+                season['Path'] = map_path(item['Path'], path_map) if 'Path' in item else None
+                seasons.append(season)
+                sleep(0.2)
+    except:
+        return []
+    #print('found %s seasons' % len(seasons))
+    return seasons
+
+def get_episodes(client = None, path_map = [], season = None):
+    if client == None or season == None:
+        return []
+
+    episodes = []
+
+    try:
+        result = client.jellyfin.shows("/%s/Episodes" % season['SeriesId'], {
+                'UserId': "{UserId}",
+                'SeasonId': season['SeasonId'],
                 'Fields': (
                     "ProviderIds",
                     "Path"
-                ),
-                #'Limit': 1
+                )
             })
+        
+        if 'Items' in result and result['Items']:
+            for item in result['Items']:
+                episode = {}
+                episode['Name'] = item['Name']
+                episode['SeriesId'] = season['SeriesId']
+                episode['SeasonId'] = season['SeasonId']
+                episode['EpisodeId'] = item['Id']
+                episode['Path'] = map_path(item['Path'], path_map) if 'Path' in item else None
+                episodes.append(episode)
+    except:
+        return []
+    #print('found %s episodes' % len(episodes))
+    return episodes
 
-    if 'Items' in result and result['Items']:
-        for item in result['Items']:
-            print(item['Name'])
-            print(item['Id'])
-            if 'Path' in item:
-                print(map_path(item['Path'], path_map))
-            get_seasons(client, path_map, item['Id'])
-            sleep(0.2)
-        print('found %s shows' % len(result['Items']))
-
-def get_seasons(client = None, path_map = [], seriesID = ''):
-    if client == None or seriesID == '':
-        return False
-
-    result = client.jellyfin.get_seasons(seriesID)
-
-    if 'Items' in result and result['Items']:
-        for item in result['Items']:
-            print(item['Name'])
-            print(item['Id'])
-            if 'Path' in item:
-                print(map_path(item['Path'], path_map))
-            get_season(client, path_map, seriesID, item['Id'])
-            sleep(0.2)
-        print('found %s seasons' % len(result['Items']))
-
-def get_season(client = None, path_map = [], seriesID = '', seasonID = ''):
-    if client == None or seriesID == '' or seasonID == '':
-        return False
-
-    result = client.jellyfin.shows("/%s/Episodes" % seriesID, {
-            'UserId': "{UserId}",
-            'SeasonId': seasonID,
-            'Fields': (
-                "ProviderIds",
-                "Path"
-            )
-        })
-    
-    if 'Items' in result and result['Items']:
-        for item in result['Items']:
-            print(item['Name'])
-            print(item['Id'])
-            if 'Path' in item:
-                print(map_path(item['Path'], path_map))
-        print('found %s episodes' % len(result['Items']))

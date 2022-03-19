@@ -11,7 +11,12 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from PIL import Image
 
-check_frame = 10  # 1 (slow) to 10 (fast) is fine
+check_frame = 10  # 1 (slow) to 10 (fast) is fine 
+ 
+def print_debug(*a):
+    # Here a is the array holding the objects
+    # passed as the argument of the function
+    print(*a, file = sys.stderr)
 
 def dict_by_value(dict, value):
     for name, age in dict.items():
@@ -51,8 +56,8 @@ def create_video_fingerprint(path, video, debug):
         image = Image.fromarray(numpy.uint8(frame))
         frame_fingerprint = str(imagehash.dhash(image))
         video_fingerprint += frame_fingerprint
-        if count % 1000 == 0 and debug:
-            print(path + " " + str(count) + "/" + str(int(frames / 4)))
+        #if count % 1000 == 0 and debug:
+        #    print_debug(path + " " + str(count) + "/" + str(int(frames / 4)))
         success, frame = video.read()
         count += 1
     if video_fingerprint == "":
@@ -96,44 +101,46 @@ def get_or_create_fingerprint(file, debug):
 
     if os.path.exists("fingerprints/" + replace(file) + "/fingerprint.txt"):
         if debug:
-            print(file + " fingerprint exists - loading it")
+            print_debug('loading existing fingerprint for [%s]' % file)
         with open("fingerprints/" + replace(file) + "/fingerprint.txt", "r") as text_file:
             fingerprint = text_file.read()
     else:
         if debug:
-            print(file + " fingerprint does not exist - creating it")
+            print_debug('creating new fingerprint for [%s]' % file)
         fingerprint = create_video_fingerprint(file, video, debug)
         write_fingerprint(file, fingerprint)
 
     video.release()
-    print("processed fingerprint for [%s]" % file)
+    if debug:
+        print_debug("processed fingerprint for [%s]" % file)
     return fingerprint, profile
 
 
 def process_directory(dir=None, debug=False, cleanup=False):
     if dir == None:
         return
-    
-    if debug:
-        print('debug enabled')
-    if cleanup:
-        print('fingerprint files will be cleaned up')
-
-    executor = ThreadPoolExecutor(max_workers=3)
 
     start = datetime.now()
-    print('started at', start)
-    
-    print("Check Frame: %s\n" % str(check_frame))
-    file_paths = []
-    if os.path.isdir(dir):
-            child_dirs = os.listdir(dir)
-            for child in child_dirs:
-                if child[0] == '.':
-                    continue
-                file_paths.append(os.path.join(dir, child))
+    if debug:
+        print_debug('debug enabled')
+        print_debug('started at', start)
+        print_debug("Check Frame: %s\n" % str(check_frame))
+    if cleanup:
+        print_debug('fingerprint files will be cleaned up')
 
-    file_paths.sort()
+    file_paths = []
+    if dir != None and os.path.isdir(dir):
+        child_dirs = os.listdir(dir)
+        for child in child_dirs:
+            if child[0] == '.':
+                continue
+            file_paths.append(os.path.join(dir, child))
+        file_paths.sort()
+    else:
+        print_debug('input directory invalid or cannot be accessed')
+        return {}
+
+    executor = ThreadPoolExecutor(max_workers=3)
 
     futures = []
     profiles = []
@@ -146,8 +153,6 @@ def process_directory(dir=None, debug=False, cleanup=False):
         fingerprints.append(fingerprint)
         profiles.append(profile)
 
-    print('\n')
-
     counter = 0
     average = 0
     while len(fingerprints) - 1 > counter:
@@ -157,17 +162,19 @@ def process_directory(dir=None, debug=False, cleanup=False):
             profiles[counter]['start_frame'] = start_end[0][0] - check_frame + 1
             profiles[counter]['end_frame'] = start_end[0][1]
             get_timestamp_from_frame(profiles[counter])
-            print(profiles[counter]['path'] + " start time: " + profiles[counter]['start_time'] + " end time: " + profiles[counter]['end_time'])
+            if debug:
+                print_debug(profiles[counter]['path'] + " start time: " + profiles[counter]['start_time'] + " end time: " + profiles[counter]['end_time'])
             
             profiles[counter + 1]['start_frame'] = start_end[1][0] - check_frame + 1
             profiles[counter + 1]['end_frame'] = start_end[1][1]
             get_timestamp_from_frame(profiles[counter + 1])
-            print(profiles[counter + 1]['path'] + " start time: " + profiles[counter + 1]['start_time'] + " end time: " + profiles[counter + 1]['end_time'])
+            if debug:
+                print_debug(profiles[counter + 1]['path'] + " start time: " + profiles[counter + 1]['start_time'] + " end time: " + profiles[counter + 1]['end_time'])
 
             average += start_end[0][1] - start_end[0][0]
             average += start_end[1][1] - start_end[1][0]
         except:
-            print("could not compare fingerprints from files " + profiles[counter]['path'] + " " + profiles[counter + 1]['path'])
+            print_debug("could not compare fingerprints from files " + profiles[counter]['path'] + " " + profiles[counter + 1]['path'])
         counter += 2
         
 
@@ -178,22 +185,25 @@ def process_directory(dir=None, debug=False, cleanup=False):
             profiles[-1]['start_frame'] = start_end[1][0] - check_frame + 1
             profiles[-1]['end_frame'] = start_end[1][1]
             get_timestamp_from_frame(profiles[-1])
-            print(profiles[-1]['path'] + " start time: " + profiles[-1]['start_time'] + " end time: " + profiles[-1]['end_time'])
+            if debug:
+                print_debug(profiles[-1]['path'] + " start time: " + profiles[-1]['start_time'] + " end time: " + profiles[-1]['end_time'])
 
             average += start_end[1][1] - start_end[1][0]
         except:
-            print("could not compare fingerprints from files " + profiles[-2]['path'] + " " + profiles[-1]['path'])
+            print_debug("could not compare fingerprints from files " + profiles[-2]['path'] + " " + profiles[-1]['path'])
 
     end = datetime.now()
-    print("ended at", end)
-    print("duration: " + str(end - start))
-    #print("average: " + str(int(average / len(fingerprints)) + check_frame * 2 - 2))
+    if debug:
+        print_debug("average: " + str(int(average / len(fingerprints)) + check_frame * 2 - 2))
+        print_debug("ended at", end)
+        print_debug("duration: " + str(end - start))
+
     executor.shutdown()
     if cleanup and os.path.isdir('fingerprints'):
         try:
             shutil.rmtree('fingerprints')
         except OSError as e:
-            print("Error: %s : %s" % ('fingerprints', e.strerror))
+            print_debug("Error: %s : %s" % ('fingerprints', e.strerror))
     return profiles
 
 def main(argv):
@@ -204,12 +214,12 @@ def main(argv):
     try:
         opts, args = getopt.getopt(argv,"hi:dc")
     except getopt.GetoptError:
-        print('decode.py -i <path> -d (debug) -c (cleanup)\n')
+        print_debug('decode.py -i <path> -d (debug) -c (cleanup)\n')
         sys.exit(2)
 
     for opt, arg in opts:
         if opt == '-h':
-            print('decode.py -i <path> -d (debug) -c (cleanup)\n')
+            print_debug('decode.py -i <path> -d (debug) -c (cleanup)\n')
             sys.exit()
         elif opt == '-i':
             path = arg
@@ -219,7 +229,7 @@ def main(argv):
             cleanup = True
 
     if path == '' or not os.path.isdir(path):
-        print('decode.py -i <path> -d (debug) -c (cleanup)\n')
+        print_debug('decode.py -i <path> -d (debug) -c (cleanup)\n')
         sys.exit(2)
 
     process_directory(dir=path, debug=debug, cleanup=cleanup)

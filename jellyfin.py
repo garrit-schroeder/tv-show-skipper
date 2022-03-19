@@ -1,8 +1,9 @@
 import os
 import jellyfin_queries
 
+from datetime import datetime, timedelta
 from jellyfin_api_client import jellyfin_login, jellyfin_logout
-
+from decode import process_directory
 
 server_url = os.environ['JELLYFIN_URL']
 server_username = os.environ['JELLYFIN_USERNAME']
@@ -20,17 +21,47 @@ def get_path_map():
             path_map.append((map[0], map[1]))
     return path_map
 
-def parse_jellyfin_shows():
+def get_jellyfin_shows():
     if server_url == '' or server_username == '' or server_password == '':
         print('missing server info')
         return
+
     path_map = get_path_map()
 
     client = jellyfin_login(server_url, server_username, server_password)
-    jellyfin_queries.get_shows(client, path_map)
-
+    shows = jellyfin_queries.get_shows(client, path_map)
+    for show in shows:
+        seasons = jellyfin_queries.get_seasons(client, path_map, show)
+        for season in seasons:
+            season['episodes'] = jellyfin_queries.get_episodes(client, path_map, season)
+        show['seasons'] = seasons
     jellyfin_logout()
-    print(path_map)
+
+    return shows
+
+def process_jellyfin_shows():
+    start = datetime.now()
+
+    shows = get_jellyfin_shows()
+    for show in shows:
+        print(show['Name'])
+        show_start_time = datetime.now()
+
+        for season in show['seasons']:
+            print(season['Name'])
+            season_start_time = datetime.now()
+
+            if 'Path' in season:
+                result = process_directory(dir=season['Path'], debug=False, cleanup=True)
+
+            season_end_time = datetime.now()
+            print('processed season [%s] in %s' % (season['Name'], str(season_end_time - season_start_time)))
+
+        show_end_time = datetime.now()
+        print('processed show [%s] in %s' % (show['Name'], str(show_end_time - show_start_time)))
+
+    end = datetime.now()
+    print("total runtime: " + str(end - start))
 
 if __name__ == '__main__':
-    parse_jellyfin_shows()
+    process_jellyfin_shows()
