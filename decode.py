@@ -116,9 +116,10 @@ def get_or_create_fingerprint(file, debug):
     return fingerprint, profile
 
 
-def process_directory(dir=None, debug=False, cleanup=False):
-    if dir == None:
-        return
+def process_directory(file_paths = [], debug=False, cleanup=False):
+    if not file_paths:
+        print_debug('input directory invalid or cannot be accessed')
+        return {}
 
     start = datetime.now()
     if debug:
@@ -127,18 +128,6 @@ def process_directory(dir=None, debug=False, cleanup=False):
         print_debug("Check Frame: %s\n" % str(check_frame))
     if cleanup:
         print_debug('fingerprint files will be cleaned up')
-
-    file_paths = []
-    if dir != None and os.path.isdir(dir):
-        child_dirs = os.listdir(dir)
-        for child in child_dirs:
-            if child[0] == '.':
-                continue
-            file_paths.append(os.path.join(dir, child))
-        file_paths.sort()
-    else:
-        print_debug('input directory invalid or cannot be accessed')
-        return {}
 
     executor = ThreadPoolExecutor(max_workers=3)
 
@@ -232,7 +221,18 @@ def main(argv):
         print_debug('decode.py -i <path> -d (debug) -c (cleanup)\n')
         sys.exit(2)
 
-    process_directory(dir=path, debug=debug, cleanup=cleanup)
+    file_paths = []
+    if os.path.isdir(path):
+        child_dirs = os.listdir(path)
+        for child in child_dirs:
+            if child[0] == '.':
+                continue
+            file_paths.append(os.path.join(path, child))
+        file_paths.sort()
+    else:
+        print_debug('input directory invalid or cannot be accessed')
+        return {}
+    process_directory(file_paths=file_paths, debug=debug, cleanup=cleanup)
 
 if __name__ == "__main__":
    main(sys.argv[1:])
