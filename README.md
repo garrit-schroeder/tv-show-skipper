@@ -7,7 +7,7 @@ largest common subset of frames with a bit of fuzziness.
 
 1. Install dependencies from `requirements.txt`
 2. To use with Jellyfin, run `jellyfin.py`. This will query Jellyfin for a list of series and their paths. By default the query to the server is limited to 1 series (for testing reasons). Comment out `'Limit': 1` in `jellyfin_queries.py` to remove this limit.
-3. To process a directory manually, run `decode.py` and pass the parameter `-i` with the absolute path to at least **two** episodes of the same season
+3. To process a directory manually, run `decode.py` and pass the parameter `-i` with the path to a directory containing at least **two** episodes of the same season
 
 By default there is little/no output to stdout or stderr until the script has finished processing some media. Run `jellyfin.py` or `decode.py` with the `-d` parameter for verbose output
 
@@ -24,6 +24,9 @@ And the intro indeed is the longest sequence in the first quarter of two episode
 Each frame from the first quarter of each episode is extracted and a hash (https://pypi.org/project/ImageHash/) is made on the frame. Each frame hash is added to a long video hash.<br>
 In pairs the longest identical string is searched from two video hashes.<br>
 Assumption: this is the intro
+
+## Troubleshooting
+If the script is killed while processing media you may encounter issues the next time you run it. This is because corrupt `fingerprint` files are likely left over from the killed session. Simply remove the directory `fingerprints` before running the script again. The same can be done for `jellyfin_cache` though it is less likely to become corrupted
 
 ## Improvements
 
