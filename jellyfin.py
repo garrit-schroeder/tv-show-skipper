@@ -55,7 +55,7 @@ def process_jellyfin_shows():
             for episode in season['episodes']:
                 if 'Path' in episode:
                     file_paths.append(episode['Path'])
-            result = process_directory(file_paths=file_paths, debug=True, cleanup=True)
+            result = process_directory(file_paths=file_paths)
 
             season_end_time = datetime.now()
             print('processed season [%s] in %s' % (season['Name'], str(season_end_time - season_start_time)))

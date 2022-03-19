@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from PIL import Image
 
+max_fingerprint_mins = 10
 check_frame = 10  # 1 (slow) to 10 (fast) is fine 
 workers = 3 # number of executors to use
 
@@ -48,10 +49,12 @@ def create_video_fingerprint(path, video, debug):
     video_fingerprint = ""
     
     frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+    fps = int(video.get(cv2.CAP_PROP_FPS))
     sucess, frame = video.read()
     count = 0
     Path("fingerprints/" + replace(path) + "/frames").mkdir(parents=True, exist_ok=True)
-    while count < int(frames / 4):
+    quarter_frames_or_first_X_mins = min(int(frames / 4), int(fps * 60 * max_fingerprint_mins))
+    while count < quarter_frames_or_first_X_mins:  # what is less - the first quarter or the first 10 minutes
         if debug:
             cv2.imwrite("fingerprints/" + replace(path) + "/frames/frame%d.jpg" % count, frame)
         image = Image.fromarray(numpy.uint8(frame))
@@ -117,15 +120,15 @@ def get_or_create_fingerprint(file, debug):
     return fingerprint, profile
 
 
-def process_directory(file_paths = [], debug=False, cleanup=False):
+def process_directory(file_paths = [], debug=False, cleanup=True):
     if not file_paths:
         print_debug('input directory invalid or cannot be accessed')
         return {}
 
     start = datetime.now()
+    print_debug('started at', start)
     if debug:
         print_debug('debug enabled')
-        print_debug('started at', start)
         print_debug("Check Frame: %s\n" % str(check_frame))
     if cleanup:
         print_debug('fingerprint files will be cleaned up')
@@ -184,8 +187,8 @@ def process_directory(file_paths = [], debug=False, cleanup=False):
         end = datetime.now()
         if debug:
             print_debug("average: " + str(int(average / len(fingerprints)) + check_frame * 2 - 2))
-            print_debug("ended at", end)
-            print_debug("duration: " + str(end - start))
+        print_debug("ended at", end)
+        print_debug("duration: " + str(end - start))
 
         if cleanup and os.path.isdir('fingerprints'):
             try:
@@ -231,7 +234,8 @@ def main(argv):
     else:
         print_debug('input directory invalid or cannot be accessed')
         return {}
-    process_directory(file_paths=file_paths, debug=debug, cleanup=cleanup)
+    result = process_directory(file_paths=file_paths, debug=debug, cleanup=cleanup)
+    print(result)
 
 if __name__ == "__main__":
    main(sys.argv[1:])
