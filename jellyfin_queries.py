@@ -41,10 +41,9 @@ def get_shows(client = None, path_map = []):
                 show['SeriesId'] = item['Id']
                 show['Path'] = map_path(item['Path'], path_map) if 'Path' in item else None
                 shows.append(show)
-                sleep(0.2)
     except:
         return []
-    #print('found %s shows' % len(shows))
+    sleep(0.2)
     return shows
 
 def get_seasons(client = None, path_map = [], series = None):
@@ -64,10 +63,9 @@ def get_seasons(client = None, path_map = [], series = None):
                 season['SeasonId'] = item['Id']
                 season['Path'] = map_path(item['Path'], path_map) if 'Path' in item else None
                 seasons.append(season)
-                sleep(0.2)
     except:
         return []
-    #print('found %s seasons' % len(seasons))
+    sleep(0.2)
     return seasons
 
 def get_episodes(client = None, path_map = [], season = None):
@@ -98,6 +96,5 @@ def get_episodes(client = None, path_map = [], season = None):
                     episodes.append(episode)
     except:
         return []
-    #print('found %s episodes' % len(episodes))
     return episodes
 
