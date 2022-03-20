@@ -107,18 +107,18 @@ def get_or_create_fingerprint(file, log_level, slow_mode):
     profile['path'] = file
 
     if os.path.exists("fingerprints/" + replace(file) + "/fingerprint.txt"):
-        if log_level > 1:
+        if log_level > 0:
             print_debug('loading existing fingerprint for [%s]' % file)
         with open("fingerprints/" + replace(file) + "/fingerprint.txt", "r") as text_file:
             fingerprint = text_file.read()
     else:
-        if log_level > 1:
+        if log_level > 0:
             print_debug('creating new fingerprint for [%s]' % file)
         fingerprint = create_video_fingerprint(file, video, log_level, slow_mode)
         write_fingerprint(file, fingerprint)
 
     video.release()
-    if log_level > 1:
+    if log_level > 0:
         print_debug("processed fingerprint for [%s]" % file)
     return fingerprint, profile
 
