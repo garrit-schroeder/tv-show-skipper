@@ -14,7 +14,9 @@ from PIL import Image
 
 max_fingerprint_mins = 10
 check_frame = 10  # 1 (slow) to 10 (fast) is fine 
-workers = 3 # number of executors to use
+workers = 4 # number of executors to use
+
+target_image_height = 180
 
 def print_debug(*a):
     # Here a is the array holding the objects
@@ -46,6 +48,25 @@ def get_timestamp_from_frame(profile):
     profile['start_time'] = str(timedelta(seconds=start_time)).split('.')[0]
     profile['end_time'] = str(timedelta(seconds=end_time)).split('.')[0]
 
+def get_scaled_image(image: Image, log_level):
+    width, height = image.size
+
+    new_width = width
+    new_height = height
+    
+    while new_height >= target_image_height:
+        tmp_width = new_width / 2
+        tmp_height = new_height / 2
+        if tmp_width < target_image_height:
+            break
+        if tmp_width % 2 != 0 or tmp_height % 2 != 0:
+            break
+        new_height = int(tmp_height)
+        new_width = int(tmp_width)
+    if new_height != height:
+        return image.resize((new_width, new_height))
+    return image
+
 def create_video_fingerprint(path, video, log_level, slow_mode):
     video_fingerprint = ""
     
@@ -56,9 +77,8 @@ def create_video_fingerprint(path, video, log_level, slow_mode):
     Path("fingerprints/" + replace(path) + "/frames").mkdir(parents=True, exist_ok=True)
     quarter_frames_or_first_X_mins = min(int(frames / 4), int(fps * 60 * max_fingerprint_mins))
     while count < quarter_frames_or_first_X_mins:  # what is less - the first quarter or the first 10 minutes
-        if log_level > 1:
-            cv2.imwrite("fingerprints/" + replace(path) + "/frames/frame%d.jpg" % count, frame)
-        image = Image.fromarray(numpy.uint8(frame))
+        #cv2.imwrite("fingerprints/" + replace(path) + "/frames/frame%d.jpg" % count, frame)
+        image = get_scaled_image(Image.fromarray(numpy.uint8(frame)), log_level)
         frame_fingerprint = str(imagehash.dhash(image))
         video_fingerprint += frame_fingerprint
         if count % 1000 == 0 and log_level > 1:
@@ -98,7 +118,7 @@ def get_start_end(print1, print2):
     return (int(search.start() / 16), int(search.end() / 16)), (int(search2.start() / 16), int(search2.end() / 16))
 
 
-def get_or_create_fingerprint(file, log_level, slow_mode):
+def get_or_create_fingerprint(file, cleanup, log_level, slow_mode):
     video = cv2.VideoCapture(file)
     fps = video.get(cv2.CAP_PROP_FPS)
 
@@ -115,7 +135,8 @@ def get_or_create_fingerprint(file, log_level, slow_mode):
         if log_level > 0:
             print_debug('creating new fingerprint for [%s]' % file)
         fingerprint = create_video_fingerprint(file, video, log_level, slow_mode)
-        write_fingerprint(file, fingerprint)
+        if not cleanup:
+            write_fingerprint(file, fingerprint)
 
     video.release()
     if log_level > 0:
@@ -144,13 +165,19 @@ def process_directory(file_paths = [], log_level=0, cleanup=True, slow_mode=Fals
         if log_level > 0:
             print_debug('input files invalid or cannot be accessed')
         return {}
+    
+    if cleanup and os.path.isdir('fingerprints'):
+        try:
+            shutil.rmtree('fingerprints')
+        except OSError as e:
+            print_debug("Error: %s : %s" % ('fingerprints', e.strerror))
 
     with ThreadPoolExecutor(max_workers=workers) as executor:
         futures = []
         profiles = []
         fingerprints = []
         for file_path in file_paths:
-            futures.append(executor.submit(get_or_create_fingerprint, file_path, log_level, slow_mode))
+            futures.append(executor.submit(get_or_create_fingerprint, file_path, cleanup, log_level, slow_mode))
 
         for future in futures:
             fingerprint, profile = future.result()
