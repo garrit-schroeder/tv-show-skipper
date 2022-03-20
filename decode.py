@@ -12,11 +12,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from PIL import Image
 
+preroll_seconds = 0 # adjust the end time to return n seconds prior to the calculated end time
 max_fingerprint_mins = 10
 check_frame = 10  # 1 (slow) to 10 (fast) is fine 
 workers = 4 # number of executors to use
-
-target_image_height = 180
+target_image_height = 180 # scale frames to height of 180px
 
 def print_debug(*a):
     # Here a is the array holding the objects
@@ -166,6 +166,11 @@ def process_directory(file_paths = [], log_level=0, cleanup=True, slow_mode=Fals
             print_debug('input files invalid or cannot be accessed')
         return {}
     
+    if len(file_paths) < 2:
+        if log_level > 0:
+            print_debug('file list size is less than 2 - skipping')
+        return {}
+    
     if cleanup and os.path.isdir('fingerprints'):
         try:
             shutil.rmtree('fingerprints')
@@ -194,6 +199,8 @@ def process_directory(file_paths = [], log_level=0, cleanup=True, slow_mode=Fals
                 if profiles[counter]['start_frame'] < 0:
                     profiles[counter]['start_frame'] = 0
                 profiles[counter]['end_frame'] = start_end[0][1]
+                if preroll_seconds > 0 and profiles[counter]['end_frame'] > int(profiles[counter]['fps'] * preroll_seconds):
+                    profiles[counter]['end_frame'] -= int(profiles[counter]['fps'] * preroll_seconds)
                 get_timestamp_from_frame(profiles[counter])
                 if log_level > 1:
                     print_debug(profiles[counter]['path'] + " start time: " + profiles[counter]['start_time'] + " end time: " + profiles[counter]['end_time'])
@@ -202,6 +209,8 @@ def process_directory(file_paths = [], log_level=0, cleanup=True, slow_mode=Fals
                 if profiles[counter + 1]['start_frame'] < 0:
                     profiles[counter + 1]['start_frame'] = 0
                 profiles[counter + 1]['end_frame'] = start_end[1][1]
+                if preroll_seconds > 0 and profiles[counter + 1]['end_frame'] > (profiles[counter + 1]['fps'] * preroll_seconds):
+                    profiles[counter + 1]['end_frame'] -= int(profiles[counter + 1]['fps'] * preroll_seconds)
                 get_timestamp_from_frame(profiles[counter + 1])
                 if log_level > 1:
                     print_debug(profiles[counter + 1]['path'] + " start time: " + profiles[counter + 1]['start_time'] + " end time: " + profiles[counter + 1]['end_time'])
@@ -222,6 +231,8 @@ def process_directory(file_paths = [], log_level=0, cleanup=True, slow_mode=Fals
                 if profiles[-1]['start_frame'] < 0:
                     profiles[-1]['start_frame'] = 0
                 profiles[-1]['end_frame'] = start_end[1][1]
+                if preroll_seconds > 0 and profiles[-1]['end_frame'] > int(profiles[-1]['fps'] * preroll_seconds):
+                    profiles[-1]['end_frame'] -= int(profiles[-1]['fps'] * preroll_seconds)
                 get_timestamp_from_frame(profiles[-1])
                 if log_level > 1:
                     print_debug(profiles[-1]['path'] + " start time: " + profiles[-1]['start_time'] + " end time: " + profiles[-1]['end_time'])
@@ -274,17 +285,25 @@ def main(argv):
         print_debug('decode.py -i <path> -v (verbose - some logging) -d (debug - most logging) -c (cleanup) -s (slow mode)\n')
         sys.exit(2)
 
+    common_video_extensions = ['.webm', '.mkv', '.avi', '.mts', '.m2ts', '.ts', '.mov', '.wmv', '.mp4', '.m4v', '.mpg', '.mpeg', '.m2v' ]
+
     file_paths = []
     if os.path.isdir(path):
         child_dirs = os.listdir(path)
         for child in child_dirs:
             if child[0] == '.':
                 continue
-            file_paths.append(os.path.join(path, child))
+            matched_ext = False
+            for ext in common_video_extensions:
+                if child.endswith(ext):
+                    matched_ext = True
+            if matched_ext:
+                file_paths.append(os.path.join(path, child))
         file_paths.sort()
     else:
         print_debug('input directory invalid or cannot be accessed')
         return {}
+
     result = process_directory(file_paths=file_paths, log_level=log_level, cleanup=cleanup, slow_mode=slow_mode)
     print(result)
 
