@@ -102,7 +102,7 @@ def process_jellyfin_shows(debug = False, save_json=False, slow_mode=False):
 
             file_paths = check_json_cache(season)
             if file_paths:
-                result = process_directory(file_paths=file_paths, debug=debug, slow_mode=slow_mode)
+                result = process_directory(file_paths=file_paths, log_level=1 if debug else 0, slow_mode=slow_mode)
                 if result:
                     save_season(season, result, save_json, debug)
                 else:
