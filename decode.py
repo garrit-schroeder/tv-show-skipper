@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from PIL import Image
 
-preroll_seconds = 0 # adjust the end time to return n seconds prior to the calculated end time
+preroll_seconds = 3 # adjust the end time to return n seconds prior to the calculated end time
 max_fingerprint_mins = 10
 check_frame = 10  # 1 (slow) to 10 (fast) is fine 
 workers = 4 # number of executors to use
@@ -78,11 +78,14 @@ def create_video_fingerprint(path, video, log_level, slow_mode):
     quarter_frames_or_first_X_mins = min(int(frames / 4), int(fps * 60 * max_fingerprint_mins))
     while count < quarter_frames_or_first_X_mins:  # what is less - the first quarter or the first 10 minutes
         #cv2.imwrite("fingerprints/" + replace(path) + "/frames/frame%d.jpg" % count, frame)
-        image = get_scaled_image(Image.fromarray(numpy.uint8(frame)), log_level)
-        frame_fingerprint = str(imagehash.dhash(image))
+        image = Image.fromarray(numpy.uint8(frame))
+        #image = get_scaled_image(Image.fromarray(numpy.uint8(frame)), log_level)
+        frame_fingerprint = str(imagehash.phash(image))
         video_fingerprint += frame_fingerprint
-        if count % 1000 == 0 and log_level > 1:
-            print_debug(path + " " + str(count) + "/" + str(int(frames / 4)))
+        if count % 1000 == 0: 
+            image.save("fingerprints/" + replace(path) + "/frames/frame%d.jpg" % count)
+            if log_level > 1:
+                print_debug(path + " " + str(count) + "/" + str(int(frames / 4)))
         success, frame = video.read()
         count += 1
         if slow_mode:
@@ -151,6 +154,46 @@ def check_files_exist(file_paths = []):
             return False
     return True
 
+def reject_outliers(data, m = 3.):
+    if not isinstance(data, numpy.ndarray):
+        data = numpy.array(data)
+    d = numpy.abs(data - numpy.median(data))
+    mdev = numpy.median(d)
+    s = d / (mdev if mdev else 1.)
+    output = data[s<m].tolist()
+
+    # sometimes numpy tolist() returns a nested list
+    if type(output[0]) == list:
+        return output[0]
+    return output
+
+def correct_errors(profiles):
+    lengths = []
+    for profile in profiles:
+        lengths.append(profile['end_frame'] - profile['start_frame'])
+    filtered_lengths = reject_outliers(lengths)
+
+    size = len(filtered_lengths)
+    sum = 0
+    for f in filtered_lengths:
+        sum += f
+    average = int(sum / size)
+
+    print_debug('average length in frames [%s] from %s of %s files' % (average, len(filtered_lengths), len(profiles)))
+
+    conforming_profiles = []
+    non_conforming_profiles = []
+    for ndx in range(0, len(profiles)):
+        print_debug('file [%s] diff from average %s' % (profiles[ndx]['path'], abs(profiles[ndx]['end_frame'] - profiles[ndx]['start_frame'] - average)))
+        if abs(profiles[ndx]['end_frame'] - profiles[ndx]['start_frame'] - average) < int(2 * profiles[ndx]['fps']):
+            conforming_profiles.append(ndx)
+        else:
+            non_conforming_profiles.append(ndx)
+    print_debug('rejected %s of %s results' % (len(non_conforming_profiles), len(profiles)))
+    for nprofile in non_conforming_profiles:
+        profiles[nprofile]['start_frame'] = profiles[nprofile]['end_frame'] - average
+
+
 def process_directory(file_paths = [], log_level=0, cleanup=True, slow_mode=False):
     start = datetime.now()
     if log_level > 0:
@@ -172,7 +215,7 @@ def process_directory(file_paths = [], log_level=0, cleanup=True, slow_mode=Fals
         return {}
     
     if log_level > 0:
-        print_debug('processing %s files', len(file_paths))
+        print_debug('processing %s files' % len(file_paths))
     
     if cleanup and os.path.isdir('fingerprints'):
         try:
@@ -202,21 +245,11 @@ def process_directory(file_paths = [], log_level=0, cleanup=True, slow_mode=Fals
                 if profiles[counter]['start_frame'] < 0:
                     profiles[counter]['start_frame'] = 0
                 profiles[counter]['end_frame'] = start_end[0][1]
-                if preroll_seconds > 0 and profiles[counter]['end_frame'] > int(profiles[counter]['fps'] * preroll_seconds):
-                    profiles[counter]['end_frame'] -= int(profiles[counter]['fps'] * preroll_seconds)
-                get_timestamp_from_frame(profiles[counter])
-                if log_level > 1:
-                    print_debug(profiles[counter]['path'] + " start time: " + profiles[counter]['start_time'] + " end time: " + profiles[counter]['end_time'])
-                
+
                 profiles[counter + 1]['start_frame'] = start_end[1][0] - check_frame + 1
                 if profiles[counter + 1]['start_frame'] < 0:
                     profiles[counter + 1]['start_frame'] = 0
                 profiles[counter + 1]['end_frame'] = start_end[1][1]
-                if preroll_seconds > 0 and profiles[counter + 1]['end_frame'] > (profiles[counter + 1]['fps'] * preroll_seconds):
-                    profiles[counter + 1]['end_frame'] -= int(profiles[counter + 1]['fps'] * preroll_seconds)
-                get_timestamp_from_frame(profiles[counter + 1])
-                if log_level > 1:
-                    print_debug(profiles[counter + 1]['path'] + " start time: " + profiles[counter + 1]['start_time'] + " end time: " + profiles[counter + 1]['end_time'])
 
                 average += start_end[0][1] - start_end[0][0]
                 average += start_end[1][1] - start_end[1][0]
@@ -234,19 +267,22 @@ def process_directory(file_paths = [], log_level=0, cleanup=True, slow_mode=Fals
                 if profiles[-1]['start_frame'] < 0:
                     profiles[-1]['start_frame'] = 0
                 profiles[-1]['end_frame'] = start_end[1][1]
-                if preroll_seconds > 0 and profiles[-1]['end_frame'] > int(profiles[-1]['fps'] * preroll_seconds):
-                    profiles[-1]['end_frame'] -= int(profiles[-1]['fps'] * preroll_seconds)
-                get_timestamp_from_frame(profiles[-1])
-                if log_level > 1:
-                    print_debug(profiles[-1]['path'] + " start time: " + profiles[-1]['start_time'] + " end time: " + profiles[-1]['end_time'])
 
                 average += start_end[1][1] - start_end[1][0]
             except:
                 print_debug("could not compare fingerprints from files " + profiles[-2]['path'] + " " + profiles[-1]['path'])
 
+        correct_errors(profiles)
+        for profile in profiles:
+            if preroll_seconds > 0 and profile['end_frame'] > int(profile['fps'] * preroll_seconds):
+                profile['end_frame'] -= int(profile['fps'] * preroll_seconds)
+            get_timestamp_from_frame(profile)
+            if log_level > 1:
+                print_debug(profile['path'] + " start time: " + profile['start_time'] + " end time: " + profile['end_time'])
+                
+
         end = datetime.now()
         if log_level > 0:
-            print_debug("average: " + str(int(average / len(fingerprints)) + check_frame * 2 - 2))
             print_debug("ended at", end)
             print_debug("duration: " + str(end - start))
 
