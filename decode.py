@@ -67,7 +67,7 @@ def get_scaled_image(image: Image, log_level):
         return image.resize((new_width, new_height))
     return image
 
-def create_video_fingerprint(path, video, log_level, slow_mode):
+def create_video_fingerprint(path, video, cleanup, log_level, slow_mode):
     video_fingerprint = ""
     
     frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -78,12 +78,13 @@ def create_video_fingerprint(path, video, log_level, slow_mode):
     quarter_frames_or_first_X_mins = min(int(frames / 4), int(fps * 60 * max_fingerprint_mins))
     while count < quarter_frames_or_first_X_mins:  # what is less - the first quarter or the first 10 minutes
         #cv2.imwrite("fingerprints/" + replace(path) + "/frames/frame%d.jpg" % count, frame)
-        image = Image.fromarray(numpy.uint8(frame))
-        #image = get_scaled_image(Image.fromarray(numpy.uint8(frame)), log_level)
+        #image = Image.fromarray(numpy.uint8(frame))
+        image = get_scaled_image(Image.fromarray(numpy.uint8(frame)), log_level)
         frame_fingerprint = str(imagehash.phash(image))
         video_fingerprint += frame_fingerprint
-        if count % 1000 == 0: 
-            image.save("fingerprints/" + replace(path) + "/frames/frame%d.jpg" % count)
+        if count % 1000 == 0:
+            if not cleanup:
+                image.save("fingerprints/" + replace(path) + "/frames/frame%d.jpg" % count)
             if log_level > 1:
                 print_debug(path + " " + str(count) + "/" + str(int(frames / 4)))
         success, frame = video.read()
@@ -137,7 +138,7 @@ def get_or_create_fingerprint(file, cleanup, log_level, slow_mode):
     else:
         if log_level > 0:
             print_debug('creating new fingerprint for [%s]' % file)
-        fingerprint = create_video_fingerprint(file, video, log_level, slow_mode)
+        fingerprint = create_video_fingerprint(file, video, cleanup, log_level, slow_mode)
         if not cleanup:
             write_fingerprint(file, fingerprint)
 
