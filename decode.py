@@ -171,6 +171,9 @@ def process_directory(file_paths = [], log_level=0, cleanup=True, slow_mode=Fals
             print_debug('file list size is less than 2 - skipping')
         return {}
     
+    if log_level > 0:
+        print_debug('processing %s files', len(file_paths))
+    
     if cleanup and os.path.isdir('fingerprints'):
         try:
             shutil.rmtree('fingerprints')
