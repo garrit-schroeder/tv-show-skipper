@@ -12,6 +12,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from PIL import Image
 
+from ffmpeg_fingerprint import get_fingerprint_ffmpeg
+
 preroll_seconds = 3 # adjust the end time to return n seconds prior to the calculated end time
 max_fingerprint_mins = 10
 check_frame = 10  # 1 (slow) to 10 (fast) is fine 
@@ -67,15 +69,19 @@ def get_scaled_image(image: Image, log_level):
         return image.resize((new_width, new_height))
     return image
 
-def create_video_fingerprint(path, video, cleanup, log_level, slow_mode):
+def create_video_fingerprint(profile, cleanup, log_level, slow_mode, use_ffmpeg):
     video_fingerprint = ""
-    
-    frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-    fps = int(video.get(cv2.CAP_PROP_FPS))
+
+    quarter_frames_or_first_X_mins = min(int(profile['total_frames'] / 4), int(profile['fps'] * 60 * max_fingerprint_mins))
+    if use_ffmpeg:
+        video_fingerprint = get_fingerprint_ffmpeg(profile['path'], quarter_frames_or_first_X_mins, log_level)
+        if video_fingerprint != '':
+            return video_fingerprint
+
+    video = cv2.VideoCapture(profile['path'])
     sucess, frame = video.read()
     count = 0
-    Path("fingerprints/" + replace(path) + "/frames").mkdir(parents=True, exist_ok=True)
-    quarter_frames_or_first_X_mins = min(int(frames / 4), int(fps * 60 * max_fingerprint_mins))
+    Path("fingerprints/" + replace(profile['path']) + "/frames").mkdir(parents=True, exist_ok=True)
     while count < quarter_frames_or_first_X_mins:  # what is less - the first quarter or the first 10 minutes
         #cv2.imwrite("fingerprints/" + replace(path) + "/frames/frame%d.jpg" % count, frame)
         #image = Image.fromarray(numpy.uint8(frame))
@@ -84,15 +90,16 @@ def create_video_fingerprint(path, video, cleanup, log_level, slow_mode):
         video_fingerprint += frame_fingerprint
         if count % 1000 == 0:
             if not cleanup:
-                image.save("fingerprints/" + replace(path) + "/frames/frame%d.jpg" % count)
+                image.save("fingerprints/" + replace(profile['path']) + "/frames/frame%d.jpg" % count)
             if log_level > 1:
-                print_debug(path + " " + str(count) + "/" + str(int(frames / 4)))
+                print_debug(profile['path'] + " " + str(count) + "/" + str(int(profile['total_frames'] / 4)))
         success, frame = video.read()
         count += 1
         if slow_mode:
             sleep(0.005)
     if video_fingerprint == "":
-        raise Exception("error creating fingerprint for video [%s]" % path)
+        raise Exception("error creating fingerprint for video [%s]" % profile['path'])
+    video.release()
     return video_fingerprint
 
 
@@ -122,13 +129,16 @@ def get_start_end(print1, print2):
     return (int(search.start() / 16), int(search.end() / 16)), (int(search2.start() / 16), int(search2.end() / 16))
 
 
-def get_or_create_fingerprint(file, cleanup, log_level, slow_mode):
+def get_or_create_fingerprint(file, cleanup, log_level, slow_mode, use_ffmpeg):
+    start = datetime.now()
     video = cv2.VideoCapture(file)
     fps = video.get(cv2.CAP_PROP_FPS)
 
     profile = {}
     profile['fps'] = fps
     profile['path'] = file
+    profile['total_frames'] = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+    video.release()
 
     if os.path.exists("fingerprints/" + replace(file) + "/fingerprint.txt"):
         if log_level > 0:
@@ -138,13 +148,13 @@ def get_or_create_fingerprint(file, cleanup, log_level, slow_mode):
     else:
         if log_level > 0:
             print_debug('creating new fingerprint for [%s]' % file)
-        fingerprint = create_video_fingerprint(file, video, cleanup, log_level, slow_mode)
+        fingerprint = create_video_fingerprint(profile, cleanup, log_level, slow_mode, use_ffmpeg)
         if not cleanup:
             write_fingerprint(file, fingerprint)
-
-    video.release()
+    
+    end = datetime.now()
     if log_level > 0:
-        print_debug("processed fingerprint for [%s]" % file)
+        print_debug("processed fingerprint for [%s] in %s" % (file, str(end - start)))
     return fingerprint, profile
 
 def check_files_exist(file_paths = []):
@@ -198,7 +208,7 @@ def correct_errors(profiles, log_level):
         profiles[nprofile]['start_frame'] = profiles[nprofile]['end_frame'] - average
 
 
-def process_directory(file_paths = [], log_level=0, cleanup=True, slow_mode=False):
+def process_directory(file_paths = [], log_level=0, cleanup=True, slow_mode=False, use_ffmpeg=False):
     start = datetime.now()
     if log_level > 0:
         print_debug('started at', start)
@@ -227,75 +237,82 @@ def process_directory(file_paths = [], log_level=0, cleanup=True, slow_mode=Fals
         except OSError as e:
             print_debug("Error: %s : %s" % ('fingerprints', e.strerror))
 
-    with ThreadPoolExecutor(max_workers=workers) as executor:
-        futures = []
-        profiles = []
-        fingerprints = []
-        for file_path in file_paths:
-            futures.append(executor.submit(get_or_create_fingerprint, file_path, cleanup, log_level, slow_mode))
+    profiles = []
+    fingerprints = []
 
-        for future in futures:
-            fingerprint, profile = future.result()
+    if use_ffmpeg:
+        for file_path in file_paths:
+            fingerprint, profile = get_or_create_fingerprint(file_path, cleanup, log_level, slow_mode, use_ffmpeg)
             fingerprints.append(fingerprint)
             profiles.append(profile)
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = []
+            for file_path in file_paths:
+                futures.append(executor.submit(get_or_create_fingerprint, file_path, cleanup, log_level, slow_mode, use_ffmpeg))
 
-        counter = 0
-        average = 0
-        while len(fingerprints) - 1 > counter:
-            try:
-                start_end = get_start_end(fingerprints[counter], fingerprints[counter + 1])
-                
-                profiles[counter]['start_frame'] = start_end[0][0] - check_frame + 1
-                if profiles[counter]['start_frame'] < 0:
-                    profiles[counter]['start_frame'] = 0
-                profiles[counter]['end_frame'] = start_end[0][1]
+            for future in futures:
+                fingerprint, profile = future.result()
+                fingerprints.append(fingerprint)
+                profiles.append(profile)
 
-                profiles[counter + 1]['start_frame'] = start_end[1][0] - check_frame + 1
-                if profiles[counter + 1]['start_frame'] < 0:
-                    profiles[counter + 1]['start_frame'] = 0
-                profiles[counter + 1]['end_frame'] = start_end[1][1]
+    counter = 0
+    average = 0
+    while len(fingerprints) - 1 > counter:
+        try:
+            start_end = get_start_end(fingerprints[counter], fingerprints[counter + 1])
+            
+            profiles[counter]['start_frame'] = start_end[0][0] - check_frame + 1
+            if profiles[counter]['start_frame'] < 0:
+                profiles[counter]['start_frame'] = 0
+            profiles[counter]['end_frame'] = start_end[0][1]
 
-                average += start_end[0][1] - start_end[0][0]
-                average += start_end[1][1] - start_end[1][0]
-            except:
-                if log_level > 0:
-                    print_debug("could not compare fingerprints from files " + profiles[counter]['path'] + " " + profiles[counter + 1]['path'])
-            counter += 2
+            profiles[counter + 1]['start_frame'] = start_end[1][0] - check_frame + 1
+            if profiles[counter + 1]['start_frame'] < 0:
+                profiles[counter + 1]['start_frame'] = 0
+            profiles[counter + 1]['end_frame'] = start_end[1][1]
+
+            average += start_end[0][1] - start_end[0][0]
+            average += start_end[1][1] - start_end[1][0]
+        except:
+            if log_level > 0:
+                print_debug("could not compare fingerprints from files " + profiles[counter]['path'] + " " + profiles[counter + 1]['path'])
+        counter += 2
+        
+
+    if (len(fingerprints) % 2) != 0:
+        try:
+            start_end = get_start_end(fingerprints[-2], fingerprints[-1])
+
+            profiles[-1]['start_frame'] = start_end[1][0] - check_frame + 1
+            if profiles[-1]['start_frame'] < 0:
+                profiles[-1]['start_frame'] = 0
+            profiles[-1]['end_frame'] = start_end[1][1]
+
+            average += start_end[1][1] - start_end[1][0]
+        except:
+            print_debug("could not compare fingerprints from files " + profiles[-2]['path'] + " " + profiles[-1]['path'])
+
+    correct_errors(profiles, log_level)
+    for profile in profiles:
+        if preroll_seconds > 0 and profile['end_frame'] > int(profile['fps'] * preroll_seconds):
+            profile['end_frame'] -= int(profile['fps'] * preroll_seconds)
+        get_timestamp_from_frame(profile)
+        if log_level > 1:
+            print_debug(profile['path'] + " start time: " + profile['start_time'] + " end time: " + profile['end_time'])
             
 
-        if (len(fingerprints) % 2) != 0:
-            try:
-                start_end = get_start_end(fingerprints[-2], fingerprints[-1])
+    end = datetime.now()
+    if log_level > 0:
+        print_debug("ended at", end)
+        print_debug("duration: " + str(end - start))
 
-                profiles[-1]['start_frame'] = start_end[1][0] - check_frame + 1
-                if profiles[-1]['start_frame'] < 0:
-                    profiles[-1]['start_frame'] = 0
-                profiles[-1]['end_frame'] = start_end[1][1]
-
-                average += start_end[1][1] - start_end[1][0]
-            except:
-                print_debug("could not compare fingerprints from files " + profiles[-2]['path'] + " " + profiles[-1]['path'])
-
-        correct_errors(profiles, log_level)
-        for profile in profiles:
-            if preroll_seconds > 0 and profile['end_frame'] > int(profile['fps'] * preroll_seconds):
-                profile['end_frame'] -= int(profile['fps'] * preroll_seconds)
-            get_timestamp_from_frame(profile)
-            if log_level > 1:
-                print_debug(profile['path'] + " start time: " + profile['start_time'] + " end time: " + profile['end_time'])
-                
-
-        end = datetime.now()
-        if log_level > 0:
-            print_debug("ended at", end)
-            print_debug("duration: " + str(end - start))
-
-        if cleanup and os.path.isdir('fingerprints'):
-            try:
-                shutil.rmtree('fingerprints')
-            except OSError as e:
-                print_debug("Error: %s : %s" % ('fingerprints', e.strerror))
-        return profiles
+    if cleanup and os.path.isdir('fingerprints'):
+        try:
+            shutil.rmtree('fingerprints')
+        except OSError as e:
+            print_debug("Error: %s : %s" % ('fingerprints', e.strerror))
+    return profiles
 
 def main(argv):
 
@@ -303,8 +320,9 @@ def main(argv):
     log_level = 0
     cleanup = False
     slow_mode = False
+    use_ffmpeg = False
     try:
-        opts, args = getopt.getopt(argv,"hi:dvc")
+        opts, args = getopt.getopt(argv,"hi:dvcf")
     except getopt.GetoptError:
         print_debug('decode.py -i <path> -v (verbose - some logging) -d (debug - most logging) -c (cleanup) -s (slow mode)\n')
         sys.exit(2)
@@ -315,6 +333,8 @@ def main(argv):
             sys.exit()
         elif opt == '-i':
             path = arg
+        elif opt == '-f':
+            use_ffmpeg = True
         elif opt == '-d':
             log_level = 2
         elif opt == '-v':
@@ -345,9 +365,8 @@ def main(argv):
         file_paths.sort()
     else:
         print_debug('input directory invalid or cannot be accessed')
-        return {}
 
-    result = process_directory(file_paths=file_paths, log_level=log_level, cleanup=cleanup, slow_mode=slow_mode)
+    result = process_directory(file_paths=file_paths, log_level=log_level, cleanup=cleanup, slow_mode=slow_mode, use_ffmpeg=use_ffmpeg)
     print(result)
 
 if __name__ == "__main__":
