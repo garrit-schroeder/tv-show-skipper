@@ -31,7 +31,7 @@ def get_shows(client = None, path_map = []):
                     ),
                     # added this limit for safety in case someone runs this without understanding what it does
                     # remove the limit to process all shows
-                    'Limit': 1
+                    #'Limit': 1
                 })
 
         if 'Items' in result and result['Items']:

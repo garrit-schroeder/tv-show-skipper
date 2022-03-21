@@ -63,7 +63,8 @@ def save_season(season = None, result = None, save_json = False, debug = False):
             season['episodes'][ndx].pop('path', None)
             print(season['episodes'][ndx])
             season['episodes'][ndx]['created'] = str(datetime.now())
-            if save_json and os.path.exists(path):
+            if save_json:
+                Path(path).mkdir(parents=True, exist_ok=True)
                 with open(os.path.join(path, season['episodes'][ndx]['EpisodeId'] + '.json'), "w+") as json_file:
                     json.dump(season['episodes'][ndx], json_file, indent = 4)
         elif debug:
@@ -75,8 +76,6 @@ def check_json_cache(season = None):
     file_paths = []
 
     if not os.path.exists(path):
-        Path(path).mkdir(parents=True, exist_ok=True)
-    else:
         filtered_episodes = []
         for episode in season['episodes']:
             if not os.path.exists(os.path.join(path, episode['EpisodeId'] + '.json')):

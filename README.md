@@ -5,9 +5,10 @@ largest common subset of frames with a bit of fuzziness.
 
 ## Running
 
-1. Install dependencies from `requirements.txt`
-2. To use with Jellyfin, run `jellyfin.py`. This will query Jellyfin for a list of series and their paths. By default the query to the server is limited to 1 series (for testing reasons). Comment out `'Limit': 1` in `jellyfin_queries.py` to remove this limit.
-3. To process a directory manually, run `decode.py` and pass the parameter `-i` with the path to a directory containing at least **two** episodes of the same season
+1. Install python dependencies from `requirements.txt`
+2. Install ffmpeg (optional)
+3. To use with Jellyfin, run `jellyfin.py`. This will query Jellyfin for a list of series and their paths. By default the query to the server is limited to 1 series (for testing reasons). Comment out `'Limit': 1` in `jellyfin_queries.py` to remove this limit.
+4. To process a directory manually, run `decode.py` and pass the parameter `-i` with the path to a directory containing at least **two** episodes of the same season
 
 By default there is little/no output to stdout or stderr until the script has finished processing some media. Run `jellyfin.py` or `decode.py` with the `-d` parameter for verbose output
 
@@ -30,9 +31,5 @@ If the script is killed while processing media you may encounter issues the next
 
 ## Improvements
 
-1. Dont extract every frame from video - does not speed up fingerprinting. Seeking in a file is slow
-2. Make educated guesses on which parts to fingerpint. At the moment the first quarter of an episode is fingerprinted. Might be to much for longer episodes. etc.
-3. Create a fingerprint that works for the whole season instead of finding the same fingerprint for every file.
-
-
-
+1. Make educated guesses on which parts to fingerpint. At the moment the first quarter of an episode is fingerprinted. Might be to much for longer episodes. etc.
+2. Create a fingerprint that works for the whole season instead of finding the same fingerprint for every file.

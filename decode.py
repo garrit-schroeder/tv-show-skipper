@@ -208,7 +208,7 @@ def correct_errors(profiles, log_level):
         profiles[nprofile]['start_frame'] = profiles[nprofile]['end_frame'] - average
 
 
-def process_directory(file_paths = [], log_level=0, cleanup=True, slow_mode=False, use_ffmpeg=False):
+def process_directory(file_paths = [], log_level=0, cleanup=True, slow_mode=False, use_ffmpeg=True):
     start = datetime.now()
     if log_level > 0:
         print_debug('started at', start)
@@ -320,21 +320,21 @@ def main(argv):
     log_level = 0
     cleanup = False
     slow_mode = False
-    use_ffmpeg = False
+    use_ffmpeg = True
     try:
-        opts, args = getopt.getopt(argv,"hi:dvcf")
+        opts, args = getopt.getopt(argv,"hi:dvcl")
     except getopt.GetoptError:
-        print_debug('decode.py -i <path> -v (verbose - some logging) -d (debug - most logging) -c (cleanup) -s (slow mode)\n')
+        print_debug('decode.py -i <path> -v (verbose - some logging) -d (debug - most logging) -c (cleanup) -s (slow mode) -l (legacy mode - dont use ffmpeg)\n')
         sys.exit(2)
 
     for opt, arg in opts:
         if opt == '-h':
-            print_debug('decode.py -i <path> -v (verbose - some logging) -d (debug - most logging) -c (cleanup) -s (slow mode)\n')
+            print_debug('decode.py -i <path> -v (verbose - some logging) -d (debug - most logging) -c (cleanup) -s (slow mode) -l (legacy mode - dont use ffmpeg)\n')
             sys.exit()
         elif opt == '-i':
             path = arg
-        elif opt == '-f':
-            use_ffmpeg = True
+        elif opt == '-l':
+            use_ffmpeg = False
         elif opt == '-d':
             log_level = 2
         elif opt == '-v':
@@ -345,7 +345,7 @@ def main(argv):
             slow_mode = True
 
     if path == '' or not os.path.isdir(path):
-        print_debug('decode.py -i <path> -v (verbose - some logging) -d (debug - most logging) -c (cleanup) -s (slow mode)\n')
+        print_debug('decode.py -i <path> -v (verbose - some logging) -d (debug - most logging) -c (cleanup) -s (slow mode) -l (legacy mode - dont use ffmpeg)\n')
         sys.exit(2)
 
     common_video_extensions = ['.webm', '.mkv', '.avi', '.mts', '.m2ts', '.ts', '.mov', '.wmv', '.mp4', '.m4v', '.mpg', '.mpeg', '.m2v' ]
