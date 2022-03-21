@@ -168,7 +168,7 @@ def reject_outliers(data, m = 3.):
         return output[0]
     return output
 
-def correct_errors(profiles):
+def correct_errors(profiles, log_level):
     lengths = []
     for profile in profiles:
         lengths.append(profile['end_frame'] - profile['start_frame'])
@@ -180,17 +180,20 @@ def correct_errors(profiles):
         sum += f
     average = int(sum / size)
 
-    print_debug('average length in frames [%s] from %s of %s files' % (average, len(filtered_lengths), len(profiles)))
+    if log_level > 1:
+        print_debug('average length in frames [%s] from %s of %s files' % (average, len(filtered_lengths), len(profiles)))
 
     conforming_profiles = []
     non_conforming_profiles = []
     for ndx in range(0, len(profiles)):
-        print_debug('file [%s] diff from average %s' % (profiles[ndx]['path'], abs(profiles[ndx]['end_frame'] - profiles[ndx]['start_frame'] - average)))
+        if log_level > 1:
+            print_debug('file [%s] diff from average %s' % (profiles[ndx]['path'], abs(profiles[ndx]['end_frame'] - profiles[ndx]['start_frame'] - average)))
         if abs(profiles[ndx]['end_frame'] - profiles[ndx]['start_frame'] - average) < int(2 * profiles[ndx]['fps']):
             conforming_profiles.append(ndx)
         else:
             non_conforming_profiles.append(ndx)
-    print_debug('rejected %s of %s results' % (len(non_conforming_profiles), len(profiles)))
+    if log_level > 1:
+        print_debug('rejected start frame values from %s of %s results' % (len(non_conforming_profiles), len(profiles)))
     for nprofile in non_conforming_profiles:
         profiles[nprofile]['start_frame'] = profiles[nprofile]['end_frame'] - average
 
@@ -273,7 +276,7 @@ def process_directory(file_paths = [], log_level=0, cleanup=True, slow_mode=Fals
             except:
                 print_debug("could not compare fingerprints from files " + profiles[-2]['path'] + " " + profiles[-1]['path'])
 
-        correct_errors(profiles)
+        correct_errors(profiles, log_level)
         for profile in profiles:
             if preroll_seconds > 0 and profile['end_frame'] > int(profile['fps'] * preroll_seconds):
                 profile['end_frame'] -= int(profile['fps'] * preroll_seconds)
