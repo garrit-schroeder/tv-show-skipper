@@ -88,6 +88,7 @@ def get_episodes(client = None, path_map = [], season = None):
             for item in result['Items']:
                 episode = {}
                 episode['Name'] = item['Name']
+                episode['Duration'] = item['RunTimeTicks'] / 10000
                 episode['SeriesId'] = season['SeriesId']
                 episode['SeasonId'] = season['SeasonId']
                 episode['EpisodeId'] = item['Id']

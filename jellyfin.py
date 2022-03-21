@@ -13,6 +13,9 @@ server_url = os.environ['JELLYFIN_URL'] if 'JELLYFIN_URL' in os.environ else ''
 server_username = os.environ['JELLYFIN_USERNAME'] if 'JELLYFIN_USERNAME' in os.environ else ''
 server_password = os.environ['JELLYFIN_PASSWORD'] if 'JELLYFIN_PASSWORD' in os.environ else ''
 
+minimum_episode_duration = 15 # minutes
+maximum_episodes_per_season = 20 # meant to skip daily shows like jeopardy
+
 def print_debug(*a):
     # Here a is the array holding the objects
     # passed as the argument of the function
@@ -42,8 +45,8 @@ def get_jellyfin_shows():
     for show in shows:
         seasons = jellyfin_queries.get_seasons(client, path_map, show)
         for season in seasons:
-            season['episodes'] = jellyfin_queries.get_episodes(client, path_map, season)
-        show['seasons'] = seasons
+            season['Episodes'] = jellyfin_queries.get_episodes(client, path_map, season)
+        show['Seasons'] = seasons
     jellyfin_logout()
 
     return shows
@@ -53,20 +56,20 @@ def save_season(season = None, result = None, save_json = False, debug = False):
         return
     path = "jellyfin_cache/" + str(season['SeriesId']) + "/" + str(season['SeasonId'])
 
-    for ndx in range(0, len(season['episodes'])):
+    for ndx in range(0, len(season['Episodes'])):
         if ndx >= len(result):
             if debug:
                 print_debug('episode index past bounds of result')
             break
-        if season['episodes'][ndx]['Path'] == result[ndx]['path']:
-            season['episodes'][ndx].update(result[ndx])
-            season['episodes'][ndx].pop('path', None)
-            print(season['episodes'][ndx])
-            season['episodes'][ndx]['created'] = str(datetime.now())
+        if season['Episodes'][ndx]['Path'] == result[ndx]['path']:
+            season['Episodes'][ndx].update(result[ndx])
+            season['Episodes'][ndx].pop('path', None)
+            print(season['Episodes'][ndx])
+            season['Episodes'][ndx]['created'] = str(datetime.now())
             if save_json:
                 Path(path).mkdir(parents=True, exist_ok=True)
-                with open(os.path.join(path, season['episodes'][ndx]['EpisodeId'] + '.json'), "w+") as json_file:
-                    json.dump(season['episodes'][ndx], json_file, indent = 4)
+                with open(os.path.join(path, season['Episodes'][ndx]['EpisodeId'] + '.json'), "w+") as json_file:
+                    json.dump(season['Episodes'][ndx], json_file, indent = 4)
         elif debug:
             print_debug('index mismatch')
 
@@ -77,13 +80,13 @@ def check_json_cache(season = None):
 
     if not os.path.exists(path):
         filtered_episodes = []
-        for episode in season['episodes']:
+        for episode in season['Episodes']:
             if not os.path.exists(os.path.join(path, episode['EpisodeId'] + '.json')):
                 filtered_episodes.append(episode)
-        print_debug('processing %s of %s episodes' % (len(filtered_episodes), len(season['episodes'])))
-        season['episodes'] = filtered_episodes
+        print_debug('processing %s of %s episodes' % (len(filtered_episodes), len(season['Episodes'])))
+        season['Episodes'] = filtered_episodes
 
-    for episode in season['episodes']:
+    for episode in season['Episodes']:
         file_paths.append(episode['Path'])
     return file_paths
 
@@ -95,10 +98,20 @@ def process_jellyfin_shows(debug = False, save_json=False, slow_mode=False):
         print_debug(show['Name'])
         show_start_time = datetime.now()
 
-        for season in show['seasons']:
+        for season in show['Seasons']:
             print_debug(season['Name'])
-            season_start_time = datetime.now()
 
+            if len(season['Episodes']) < 2:
+                print_debug('skipping season since it doesn\'t contain at least 2 episodes')
+                continue
+            if len(season['Episodes']) > maximum_episodes_per_season:
+                print_debug('skipping season since it contains %s episodes (more than max %s)' % (len(season['Name']['Episodes']), maximum_episodes_per_season))
+                continue
+            if season['Episodes'][0]['Duration'] < minimum_episode_duration * 60:
+                print_debug('skipping season since episodes are too short (less than minimum %s minutes)' % (len(season['Name']['Episodes']), minimum_episode_duration))
+                continue
+
+            season_start_time = datetime.now()
             file_paths = check_json_cache(season)
             if file_paths:
                 result = process_directory(file_paths=file_paths, log_level=1 if debug else 0, slow_mode=slow_mode, use_ffmpeg=True)
