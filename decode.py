@@ -216,7 +216,7 @@ def correct_errors(fingerprints, profiles, log_level):
             print_debug('rejected file [%s] with start %s end %s' % (profiles[ndx]['path'], profiles[ndx]['start_frame'], profiles[ndx]['end_frame']))
             print_timestamp(profiles[ndx]['path'], profiles[ndx]['start_frame'], profiles[ndx]['end_frame'], profiles[ndx]['fps'])
             with open('rejects.txt', "a") as logger:
-                logger.write('rejected file [%s] start %s end %s average %s fps %s\n' % (profiles[ndx]['path'], profiles[ndx]['start_frame'], profiles[ndx]['end_frame'], average, profiles[ndx]['fps']))
+                logger.write('rejected file [%s] diff from average %s start %s end %s average %s fps %s\n' % (profiles[ndx]['path'], diff_from_avg, profiles[ndx]['start_frame'], profiles[ndx]['end_frame'], average, profiles[ndx]['fps']))
             non_conforming_profiles.append(ndx)
     if log_level > 0:
         print_debug('rejected start frame values from %s of %s results' % (len(non_conforming_profiles), len(profiles)))
