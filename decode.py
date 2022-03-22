@@ -207,10 +207,10 @@ def correct_errors(fingerprints, profiles, log_level):
     conforming_profiles = []
     non_conforming_profiles = []
     for ndx in range(0, len(profiles)):
-        diff_from_avg = profiles[ndx]['end_frame'] - profiles[ndx]['start_frame'] - average
+        diff_from_avg = abs(profiles[ndx]['end_frame'] - profiles[ndx]['start_frame'] - average)
         if log_level > 1:
             print_debug('file [%s] diff from average %s' % (profiles[ndx]['path'], diff_from_avg))
-        if diff_from_avg > int(-2 * profiles[ndx]['fps']) and diff_from_avg <= int(7 * profiles[ndx]['fps']):
+        if diff_from_avg <= int(10 * profiles[ndx]['fps']):
             conforming_profiles.append(ndx)
         else:
             print_debug('rejected file [%s] with start %s end %s' % (profiles[ndx]['path'], profiles[ndx]['start_frame'], profiles[ndx]['end_frame']))
@@ -234,7 +234,8 @@ def correct_errors(fingerprints, profiles, log_level):
         process_pairs(fingerprints, profiles, conforming_profiles[0], nprofile, SECOND, log_level)
 
         diff_from_avg = profiles[nprofile]['end_frame'] - profiles[nprofile]['start_frame'] - average
-        if diff_from_avg <= int(-2 * profiles[nprofile]['fps']) or diff_from_avg > int(7 * profiles[nprofile]['fps']):
+        if diff_from_avg > int(10 * profiles[nprofile]['fps']) or \
+            profiles[nprofile]['end_frame'] - profiles[nprofile]['start_frame'] < int(15 * profiles[nprofile]['fps']):
             if log_level > 0:
                 print_debug('failed to locate intro by reprocessing %s' % profiles[nprofile]['path'])
                 print_debug('file [%s] new start %s end %s' % (profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame']))
@@ -328,7 +329,12 @@ def process_directory(file_paths = [], log_level=0, cleanup=True, slow_mode=Fals
 
     correct_errors(fingerprints, profiles, log_level)
     for profile in profiles:
-        if preroll_seconds > 0 and profile['end_frame'] > profile['start_frame'] + int(profile['fps'] * preroll_seconds):
+        if profile['end_frame'] - profile['start_frame'] < int(15 * profile['fps']):
+            if log_level > 1:
+                print_debug('intro is less than 15 seconds - skipping')
+            profile['start_frame'] = 0
+            profile['end_frame'] = 0
+        elif preroll_seconds > 0 and profile['end_frame'] > profile['start_frame'] + int(profile['fps'] * preroll_seconds):
             profile['end_frame'] -= int(profile['fps'] * preroll_seconds)
         get_timestamp_from_frame(profile)
         if log_level > 1:
