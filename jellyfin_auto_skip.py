@@ -41,7 +41,7 @@ def monitor_sessions():
 
         sessionId = session['Id']
 
-        print('user id %s' % session['UserId'])
+        #print('user id %s' % session['UserId'])
         print(session['DeviceName'])
 
         lastPlaybackTime = arrow.get(session['LastPlaybackCheckIn']).to('utc').datetime
@@ -96,6 +96,7 @@ def monitor_sessions():
             "SeekPositionTicks": end_time_ticks
         }
         client.jellyfin.sessions(handler="/%s/Playing/seek" % sessionId, action="POST", params=params)
+        sleep(10)
 
 def monitor_loop():
     global client
