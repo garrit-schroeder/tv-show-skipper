@@ -7,14 +7,34 @@ largest common subset of frames with a bit of fuzziness.
 
 1. Install python dependencies from `requirements.txt`
 2. Install ffmpeg (optional)
-3. To use with Jellyfin, run `jellyfin.py`. This will query Jellyfin for a list of series and their paths. By default the query to the server is limited to 1 series (for testing reasons). Comment out `'Limit': 1` in `jellyfin_queries.py` to remove this limit.
+3. To use with Jellyfin, run `jellyfin.py`. This will query Jellyfin for a list of series and their paths.
 4. To process a directory manually, run `decode.py` and pass the parameter `-i` with the path to a directory containing at least **two** episodes of the same season
 
 By default there is little/no output to stdout or stderr until the script has finished processing some media. Run `jellyfin.py` or `decode.py` with the `-d` parameter for verbose output
 
 When using `jellyfin.py`, the results can be saved to `json` using the `-j` parameter. These will be saved in a sub-directory in `pwd`. Saving the results as json also allows them to be checked in subsequent runs to skip already processed files.
 
-When using `jellyfin.py`, `path_map.txt` can be used to specify path mapping between the host and container if jellyfin is run with Docker.
+## Examples
+scan your jellyfin library, store the result in json, debug logging enabled
+
+`jellyfin.py -d -j`
+
+monitor your jellyfin sessions and automatically skip intros using the stored json data
+
+`jellyfin_auto_skip.py`
+
+manually scan a directory containing at least 2 video files, debug logging enabled, delete fingerpring data afterward
+`decode.py -d -c -i /path/to/tv/season`
+
+make the script aware of your host:container path mapping by editing `path_map.txt`
+
+```
+# use this file if you run jellyfin a container
+# example:
+# /host/system/tv/path:/jellyfin/container/tv/path
+
+/srv/my-mnt-title/media/tv:/data/tv
+```
 
 ## Disclaimer
 

@@ -2,6 +2,8 @@ import os
 import sys, getopt
 import jellyfin_queries
 import json
+import signal
+
 
 from time import sleep
 from pathlib import Path
@@ -15,6 +17,8 @@ server_password = os.environ['JELLYFIN_PASSWORD'] if 'JELLYFIN_PASSWORD' in os.e
 
 minimum_episode_duration = 15 # minutes
 maximum_episodes_per_season = 20 # meant to skip daily shows like jeopardy
+
+should_stop = False
 
 def print_debug(*a):
     # Here a is the array holding the objects
@@ -127,9 +131,12 @@ def process_jellyfin_shows(log_level = 0, save_json=False, slow_mode=False):
             season_end_time = datetime.now()
             print_debug('processed season [%s] in %s' % (season['Name'], str(season_end_time - season_start_time)))
             sleep(2)
-
+            if should_stop:
+                break
         show_end_time = datetime.now()
         print_debug('processed show [%s] in %s' % (show['Name'], str(show_end_time - show_start_time)))
+        if should_stop:
+            break
 
     end = datetime.now()
     print_debug("total runtime: " + str(end - start))
@@ -166,6 +173,14 @@ def main(argv):
         print_debug('you need to export env variables: JELLYFIN_URL, JELLYFIN_USERNAME, JELLYFIN_PASSWORD\n')
 
     process_jellyfin_shows(log_level, save_json, slow_mode)
+
+def receiveSignal(signalNumber, frame):
+    global should_stop
+    print_debug('Received signal:', signalNumber)
+    if signalNumber == signal.SIGINT:
+        print_debug('will stop after current season')
+        should_stop = True
+    return
 
 if __name__ == "__main__":
    main(sys.argv[1:])

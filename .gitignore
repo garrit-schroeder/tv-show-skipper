@@ -1,7 +1,9 @@
 .idea
 __pycache__/
 *.py[cod]
-path_map.txt
+*.json
+*.txt
+*.DS_STORE
 cred.json
 venv
 samples
