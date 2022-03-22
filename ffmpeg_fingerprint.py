@@ -60,7 +60,7 @@ def get_fingerprint_ffmpeg(path, frame_nb, log_level=1):
             frame_fingerprint = str(imagehash.phash(image))
             video_fingerprint += frame_fingerprint
     try:
-        shutil.rmtree("fingerprints/" + replace(path))
+        shutil.rmtree("fingerprints/" + replace(path)  + "/frames")
     except OSError as e:
         if log_level > 0:
             print_debug("Error: %s : %s" % ("fingerprints/" + replace(path) + "/frames", e.strerror))

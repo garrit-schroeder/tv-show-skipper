@@ -1,3 +1,4 @@
+from cmath import log
 import re
 import os
 import cv2
@@ -14,7 +15,11 @@ from PIL import Image
 
 from ffmpeg_fingerprint import get_fingerprint_ffmpeg
 
-preroll_seconds = 3 # adjust the end time to return n seconds prior to the calculated end time
+FIRST = 0
+SECOND = 1
+BOTH = 2
+
+preroll_seconds = 0 # adjust the end time to return n seconds prior to the calculated end time
 max_fingerprint_mins = 10
 check_frame = 10  # 1 (slow) to 10 (fast) is fine 
 workers = 4 # number of executors to use
@@ -40,6 +45,11 @@ def write_fingerprint(path, fingerprint):
 def replace(s):
     return re.sub('[^A-Za-z0-9]+', '', s)
 
+def print_timestamp(name, start_frame, end_frame, fps):
+    start_time = 0 if start_frame == 0 else round(start_frame / fps)
+    end_time = 0 if end_frame == 0 else round(end_frame / fps)
+
+    print_debug('[%s] has start %s end %s' % (name, str(timedelta(seconds=start_time)).split('.')[0], str(timedelta(seconds=end_time)).split('.')[0]))
 
 def get_timestamp_from_frame(profile):
     start_time = 0 if profile['start_frame'] == 0 else round(profile['start_frame'] / profile['fps'])
@@ -165,7 +175,7 @@ def check_files_exist(file_paths = []):
             return False
     return True
 
-def reject_outliers(data, m = 3.):
+def reject_outliers(data, m = 6.):
     if not isinstance(data, numpy.ndarray):
         data = numpy.array(data)
     d = numpy.abs(data - numpy.median(data))
@@ -178,7 +188,7 @@ def reject_outliers(data, m = 3.):
         return output[0]
     return output
 
-def correct_errors(profiles, log_level):
+def correct_errors(fingerprints, profiles, log_level):
     lengths = []
     for profile in profiles:
         lengths.append(profile['end_frame'] - profile['start_frame'])
@@ -190,23 +200,76 @@ def correct_errors(profiles, log_level):
         sum += f
     average = int(sum / size)
 
-    if log_level > 1:
+    if log_level > 0:
         print_debug('average length in frames [%s] from %s of %s files' % (average, len(filtered_lengths), len(profiles)))
+        print_timestamp('average length (time)', 0, average, profiles[0]['fps'])
 
     conforming_profiles = []
     non_conforming_profiles = []
     for ndx in range(0, len(profiles)):
+        diff_from_avg = profiles[ndx]['end_frame'] - profiles[ndx]['start_frame'] - average
         if log_level > 1:
-            print_debug('file [%s] diff from average %s' % (profiles[ndx]['path'], abs(profiles[ndx]['end_frame'] - profiles[ndx]['start_frame'] - average)))
-        if abs(profiles[ndx]['end_frame'] - profiles[ndx]['start_frame'] - average) < int(2 * profiles[ndx]['fps']):
+            print_debug('file [%s] diff from average %s' % (profiles[ndx]['path'], diff_from_avg))
+        if diff_from_avg > int(-2 * profiles[ndx]['fps']) and diff_from_avg <= int(7 * profiles[ndx]['fps']):
             conforming_profiles.append(ndx)
         else:
+            print_debug('rejected file [%s] with start %s end %s' % (profiles[ndx]['path'], profiles[ndx]['start_frame'], profiles[ndx]['end_frame']))
+            print_timestamp(profiles[ndx]['path'], profiles[ndx]['start_frame'], profiles[ndx]['end_frame'], profiles[ndx]['fps'])
+            with open('rejects.txt', "a") as logger:
+                logger.write('rejected file [%s] start %s end %s average %s fps %s\n' % (profiles[ndx]['path'], profiles[ndx]['start_frame'], profiles[ndx]['end_frame'], average, profiles[ndx]['fps']))
             non_conforming_profiles.append(ndx)
-    if log_level > 1:
+    if log_level > 0:
         print_debug('rejected start frame values from %s of %s results' % (len(non_conforming_profiles), len(profiles)))
-    for nprofile in non_conforming_profiles:
-        profiles[nprofile]['start_frame'] = profiles[nprofile]['end_frame'] - average
+    if len(conforming_profiles) < 1:
+        if log_level > 0:
+            print_debug('all profiles were rejected')
+        for profile in profiles:
+            profile['start_frame'] = 0
+            profile['end_frame'] = 0
+        return
 
+    for nprofile in non_conforming_profiles:
+        if log_level > 0:
+            print_debug('reprocessing %s by comparing to %s' % (profiles[nprofile]['path'], profiles[conforming_profiles[0]]['path']))
+        process_pairs(fingerprints, profiles, conforming_profiles[0], nprofile, SECOND, log_level)
+
+        diff_from_avg = profiles[nprofile]['end_frame'] - profiles[nprofile]['start_frame'] - average
+        if diff_from_avg <= int(-2 * profiles[nprofile]['fps']) or diff_from_avg > int(7 * profiles[nprofile]['fps']):
+            if log_level > 0:
+                print_debug('failed to locate intro by reprocessing %s' % profiles[nprofile]['path'])
+                print_debug('file [%s] new start %s end %s' % (profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame']))
+                print_timestamp(profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame'], profiles[nprofile]['fps'])
+                with open('rejects.txt', "a") as logger:
+                    logger.write('rejected file failed to be reprocessed [%s] start %s end %s\n' % (profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame']))
+            profiles[nprofile]['start_frame'] = 0
+            profiles[nprofile]['end_frame'] = 0
+        else:
+            print_debug('reprocess successful for file [%s] new start %s end %s' % (profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame']))
+            print_timestamp(profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame'], profiles[nprofile]['fps'])
+            with open('rejects.txt', "a") as logger:
+                logger.write('rejected file successfully reprocessed [%s] start %s end %s\n' % (profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame']))
+    if len(non_conforming_profiles) > 0:
+        with open('rejects.txt', "a") as logger:
+            logger.write('\n')
+
+def process_pairs(fingerprints, profiles, ndx_1, ndx_2, mode, log_level):
+    try:
+        start_end = get_start_end(fingerprints[ndx_1], fingerprints[ndx_2])
+        
+        if mode == BOTH or mode == FIRST:
+            profiles[ndx_1]['start_frame'] = start_end[0][0] - check_frame + 1
+            if profiles[ndx_1]['start_frame'] < 0:
+                profiles[ndx_1]['start_frame'] = 0
+            profiles[ndx_1]['end_frame'] = start_end[0][1]
+
+        if mode == BOTH or mode == SECOND:
+            profiles[ndx_2]['start_frame'] = start_end[1][0] - check_frame + 1
+            if profiles[ndx_2]['start_frame'] < 0:
+                profiles[ndx_2]['start_frame'] = 0
+            profiles[ndx_2]['end_frame'] = start_end[1][1]
+    except:
+        if log_level > 0:
+            print_debug("could not compare fingerprints from files " + profiles[ndx_1]['path'] + " " + profiles[ndx_2]['path'])
 
 def process_directory(file_paths = [], log_level=0, cleanup=True, slow_mode=False, use_ffmpeg=True):
     start = datetime.now()
@@ -257,50 +320,19 @@ def process_directory(file_paths = [], log_level=0, cleanup=True, slow_mode=Fals
                 profiles.append(profile)
 
     counter = 0
-    average = 0
     while len(fingerprints) - 1 > counter:
-        try:
-            start_end = get_start_end(fingerprints[counter], fingerprints[counter + 1])
-            
-            profiles[counter]['start_frame'] = start_end[0][0] - check_frame + 1
-            if profiles[counter]['start_frame'] < 0:
-                profiles[counter]['start_frame'] = 0
-            profiles[counter]['end_frame'] = start_end[0][1]
-
-            profiles[counter + 1]['start_frame'] = start_end[1][0] - check_frame + 1
-            if profiles[counter + 1]['start_frame'] < 0:
-                profiles[counter + 1]['start_frame'] = 0
-            profiles[counter + 1]['end_frame'] = start_end[1][1]
-
-            average += start_end[0][1] - start_end[0][0]
-            average += start_end[1][1] - start_end[1][0]
-        except:
-            if log_level > 0:
-                print_debug("could not compare fingerprints from files " + profiles[counter]['path'] + " " + profiles[counter + 1]['path'])
+        process_pairs(fingerprints, profiles, counter, counter + 1, BOTH, log_level)
         counter += 2
-        
-
     if (len(fingerprints) % 2) != 0:
-        try:
-            start_end = get_start_end(fingerprints[-2], fingerprints[-1])
+        process_pairs(fingerprints, profiles, -2, -1, SECOND, log_level)
 
-            profiles[-1]['start_frame'] = start_end[1][0] - check_frame + 1
-            if profiles[-1]['start_frame'] < 0:
-                profiles[-1]['start_frame'] = 0
-            profiles[-1]['end_frame'] = start_end[1][1]
-
-            average += start_end[1][1] - start_end[1][0]
-        except:
-            print_debug("could not compare fingerprints from files " + profiles[-2]['path'] + " " + profiles[-1]['path'])
-
-    correct_errors(profiles, log_level)
+    correct_errors(fingerprints, profiles, log_level)
     for profile in profiles:
-        if preroll_seconds > 0 and profile['end_frame'] > int(profile['fps'] * preroll_seconds):
+        if preroll_seconds > 0 and profile['end_frame'] > profile['start_frame'] + int(profile['fps'] * preroll_seconds):
             profile['end_frame'] -= int(profile['fps'] * preroll_seconds)
         get_timestamp_from_frame(profile)
         if log_level > 1:
             print_debug(profile['path'] + " start time: " + profile['start_time'] + " end time: " + profile['end_time'])
-            
 
     end = datetime.now()
     if log_level > 0:
