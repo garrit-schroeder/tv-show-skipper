@@ -130,7 +130,8 @@ def process_jellyfin_shows(log_level = 0, save_json=False, slow_mode=False):
                     print_debug('no results - the decoder may not have access to the specified media files')
             season_end_time = datetime.now()
             print_debug('processed season [%s] in %s' % (season['Name'], str(season_end_time - season_start_time)))
-            sleep(2)
+            if file_paths:
+                sleep(2)
             if should_stop:
                 break
         show_end_time = datetime.now()
