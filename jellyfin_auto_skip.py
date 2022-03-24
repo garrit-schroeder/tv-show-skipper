@@ -92,6 +92,7 @@ def monitor_sessions():
             "TimeoutMs": 5000
         })
 
+        sleep(1)
         params = {
             "SeekPositionTicks": end_time_ticks
         }
