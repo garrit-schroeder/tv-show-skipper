@@ -5,8 +5,9 @@ import signal
 
 from time import sleep
 from datetime import datetime, timezone
-
+from requests.exceptions import HTTPError
 from jellyfin_api_client import jellyfin_login, jellyfin_logout
+from jellyfin_apiclient_python.exceptions import HTTPException
 
 server_url = os.environ['JELLYFIN_URL'] if 'JELLYFIN_URL' in os.environ else ''
 server_username = os.environ['JELLYFIN_USERNAME'] if 'JELLYFIN_USERNAME' in os.environ else ''
@@ -18,15 +19,19 @@ preroll_seconds = 3
 minimum_intro_length = 10 # seconds
 
 client = None
+should_exit = False
 
 def monitor_sessions():
-    global client
-
     if client == None:
-        return
+        return False
 
     start = datetime.now(timezone.utc)
-    sessions = client.jellyfin.sessions()
+    try:
+        sessions = client.jellyfin.sessions()
+    except (HTTPError, HTTPException) as err:
+        print("error communicating with the server")
+        return False
+
     for session in sessions:
         if session['UserId'] != client.auth.jellyfin_user_id():
             continue
@@ -97,25 +102,39 @@ def monitor_sessions():
         }
         client.jellyfin.sessions(handler="/%s/Playing/seek" % sessionId, action="POST", params=params)
         sleep(10)
+    return True
+
+def init_client():
+    global client
+
+    print('initializing client')
+    if client != None:
+        jellyfin_logout()
+    sleep(1)
+    client = jellyfin_login(server_url, server_username, server_password)
+    
 
 def monitor_loop():
-    global client
+    global should_exit
+
     if server_url == '' or server_username == '' or server_password == '':
         print('missing server info')
         return
     
-    client = jellyfin_login(server_url, server_username, server_password)
-    while client != None:
-        monitor_sessions()
+    init_client()
+    while not should_exit:
+        if not monitor_sessions() and not should_exit:
+            init_client()
         sleep(5)
+    jellyfin_logout()
 
 
 def receiveSignal(signalNumber, frame):
-    global client
-    print('Received signal:', signalNumber)
-    if signalNumber == signal.SIGINT and client != None:
-        jellyfin_logout()
-        client = None
+    global should_exit
+
+    if signalNumber == signal.SIGINT:
+        print('should exit')
+        should_exit = True
     return
 
 if __name__ == "__main__":
