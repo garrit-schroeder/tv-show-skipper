@@ -20,6 +20,8 @@ SECOND = 1
 BOTH = 2
 
 preroll_seconds = 0 # adjust the end time to return n seconds prior to the calculated end time
+                    # jellyfin_auto_skip.py also handles pre-roll so adjust it there
+                    # adjusting it here bakes the pre-rolled value into the result
 max_fingerprint_mins = 10
 check_frame = 10  # 1 (slow) to 10 (fast) is fine 
 workers = 4 # number of executors to use
