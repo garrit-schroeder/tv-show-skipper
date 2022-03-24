@@ -29,10 +29,10 @@ jellyfin_client_manager = None
 jellyfin_current_client = None
 
 
-APP_NAME = "jellyfin-python-test"
-USER_APP_NAME = "jellyfin-python-test"
+APP_NAME = "tv-intro-detection"
+USER_APP_NAME = "TV Intro Detection"
 CLIENT_VERSION = "0.0.1"
-USER_AGENT = "jellyfin-python-test/%s" % CLIENT_VERSION
+USER_AGENT = "tv-intro-detection/%s" % CLIENT_VERSION
 CAPABILITIES = {
     "PlayableMediaTypes": "",
     "SupportsMediaControl": False,
