@@ -45,11 +45,10 @@ def monitor_sessions():
         print(session['DeviceName'])
 
         lastPlaybackTime = arrow.get(session['LastPlaybackCheckIn']).to('utc').datetime
-        currentTime = datetime.now(timezone.utc)
-        timeDiff = currentTime - lastPlaybackTime
+        timeDiff = start - lastPlaybackTime
 
         item = session['NowPlayingItem']
-        if not session['PlayState']['IsPaused'] and timeDiff.seconds < 4:
+        if not session['PlayState']['IsPaused'] and timeDiff.seconds < 5:
             print('currently playing %s - %s - Episode %s [%s]' % (item['SeriesName'], item['SeasonName'], item['ParentIndexNumber'], item['Name']))
             print('item id %s' % item['Id'])
         else:
