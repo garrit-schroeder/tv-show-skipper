@@ -87,7 +87,7 @@ def monitor_sessions():
 
         print('trying to send seek to client')
         client.jellyfin.sessions(handler="/%s/Message" % sessionId, action="POST", json={
-            "Text": "Auto Skipping Intro",
+            "Text": "Skipping Intro",
             "TimeoutMs": 5000
         })
 
