@@ -61,6 +61,10 @@ def monitor_sessions():
             print('not playing or hasn\'t checked in')
             continue
 
+        if not 'SeriesId' in item or not 'SeasonId' in item:
+            print('playing item isn\'t a series')
+            continue
+
         position_ticks = int(session['PlayState']['PositionTicks'])
         print('current position %s minutes' % (((position_ticks / TICKS_PER_MS) / 1000) / 60))
 
