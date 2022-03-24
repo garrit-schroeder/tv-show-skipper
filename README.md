@@ -29,7 +29,7 @@ manually scan a directory containing at least 2 video files, debug logging enabl
 make the script aware of your host:container path mapping by editing `path_map.txt`
 
 ```
-# use this file if you run jellyfin a container
+# use this file if you run jellyfin in a container
 # example:
 # /host/system/tv/path:/jellyfin/container/tv/path
 
@@ -38,12 +38,11 @@ make the script aware of your host:container path mapping by editing `path_map.t
 
 ## Disclaimer
 
-Only work if the intro of an episode is similar / identical from episode to episode.<br>
-And the intro indeed is the longest sequence in the first quarter of two episodes (should be in all cases)
+The decoder relies on comparing two video files to find the similar sections. Because of this, it only works if the intros are similar / identical from episode to episode.
 
 ## How it works
 Each frame from the first quarter of each episode is extracted and a hash (https://pypi.org/project/ImageHash/) is made on the frame. Each frame hash is added to a long video hash.<br>
-In pairs the longest identical string is searched from two video hashes.<br>
+In pairs the longest identical string is searched from the two video hashes.<br>
 Assumption: this is the intro
 
 ## Troubleshooting
