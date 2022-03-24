@@ -53,12 +53,14 @@ def monitor_sessions():
         timeDiff = start - lastPlaybackTime
 
         item = session['NowPlayingItem']
-        if not session['PlayState']['IsPaused'] and timeDiff.seconds < 5:
-            print('currently playing %s - %s - Episode %s [%s]' % (item['SeriesName'], item['SeasonName'], item['ParentIndexNumber'], item['Name']))
+        if not session['PlayState']['IsPaused'] and timeDiff.seconds < 5 and 'Id' in item:
+            if 'SeriesName' in item and 'SeasonName' in item and 'ParentIndexNumber' in item and 'Name' in item:
+                print('currently playing %s - %s - Episode %s [%s]' % (item['SeriesName'], item['SeasonName'], item['ParentIndexNumber'], item['Name']))
             print('item id %s' % item['Id'])
         else:
             print('not playing or hasn\'t checked in')
             continue
+
         position_ticks = int(session['PlayState']['PositionTicks'])
         print('current position %s minutes' % (((position_ticks / TICKS_PER_MS) / 1000) / 60))
 
