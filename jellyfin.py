@@ -16,7 +16,7 @@ server_username = os.environ['JELLYFIN_USERNAME'] if 'JELLYFIN_USERNAME' in os.e
 server_password = os.environ['JELLYFIN_PASSWORD'] if 'JELLYFIN_PASSWORD' in os.environ else ''
 
 minimum_episode_duration = 15 # minutes
-maximum_episodes_per_season = 20 # meant to skip daily shows like jeopardy
+maximum_episodes_per_season = 30 # meant to skip daily shows like jeopardy
 
 should_stop = False
 
