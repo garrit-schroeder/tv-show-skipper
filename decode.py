@@ -212,7 +212,7 @@ def correct_errors(fingerprints, profiles, log_level):
         diff_from_avg = abs(profiles[ndx]['end_frame'] - profiles[ndx]['start_frame'] - average)
         if log_level > 1:
             print_debug('file [%s] diff from average %s' % (profiles[ndx]['path'], diff_from_avg))
-        if diff_from_avg <= int(10 * profiles[ndx]['fps']):
+        if profiles[ndx]['end_frame'] - profiles[ndx]['start_frame'] in filtered_lengths:
             conforming_profiles.append(ndx)
         else:
             print_debug('rejected file [%s] with start %s end %s' % (profiles[ndx]['path'], profiles[ndx]['start_frame'], profiles[ndx]['end_frame']))
