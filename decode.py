@@ -135,7 +135,7 @@ def check_files_exist(file_paths = []):
             return False
     return True
 
-def reject_outliers(data, m = 6.):
+def reject_outliers(data, m = 9.):
     if not isinstance(data, numpy.ndarray):
         data = numpy.array(data)
     d = numpy.abs(data - numpy.median(data))
@@ -242,7 +242,7 @@ def correct_errors(fingerprints, profiles, log_level):
     for nprofile in non_conforming_profiles:
         if log_level > 0:
             print_debug('reprocessing %s by comparing to %s' % (profiles[nprofile]['path'], profiles[ref_profile_ndx]['path']))
-        process_pairs(fingerprints, profiles, conforming_profiles[ref_profile_ndx], nprofile, SECOND, log_level)
+        process_pairs(fingerprints, profiles, ref_profile_ndx, nprofile, SECOND, log_level)
     
     # repeat building a list of lengths and filtering them
     lengths = []
@@ -253,7 +253,10 @@ def correct_errors(fingerprints, profiles, log_level):
     # repeat checking each profile's duration against the new filtered list of lengths
     repaired = 0
     for nprofile in range(0, len(profiles)):
-        if profiles[nprofile]['end_frame'] - profiles[nprofile]['start_frame'] in new_filtered_lengths:
+        diff_from_avg = abs(profiles[nprofile]['end_frame'] - profiles[nprofile]['start_frame'] - average)
+        if profiles[nprofile]['end_frame'] - profiles[nprofile]['start_frame'] in new_filtered_lengths or \
+                diff_from_avg < int(15 * profiles[nprofile]['fps']):
+
             if nprofile in non_conforming_profiles:
                 repaired += 1
                 with open('rejects.txt', "a") as logger:
@@ -263,18 +266,17 @@ def correct_errors(fingerprints, profiles, log_level):
                     print_timestamp(profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame'], profiles[nprofile]['fps'])
         else:
             if nprofile in non_conforming_profiles:
-                profiles[nprofile]['start_frame'] = 0
-                profiles[nprofile]['end_frame'] = 0
-
                 if log_level > 0:
                     print_debug('\nfailed to locate intro by reprocessing %s' % profiles[nprofile]['path'])
                     print_debug('file [%s] new start %s end %s' % (profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame']))
                     print_timestamp(profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame'], profiles[nprofile]['fps'])
                 with open('rejects.txt', "a") as logger:
                     logger.write('rejected file failed to be reprocessed [%s] start %s end %s\n' % (profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame']))
+                profiles[nprofile]['start_frame'] = 0
+                profiles[nprofile]['end_frame'] = 0
             else:
                 if log_level > 0:
-                    print_debug('\nerror - previously compliant profile %s is not longer maked compliant' % profiles[nprofile]['path'])
+                    print_debug('\nerror - previously compliant profile %s is not longer marked compliant' % profiles[nprofile]['path'])
     if log_level > 0:
         print_debug('\nrepaired %s/%s non conforming profiles\n' % (repaired, len(non_conforming_profiles)))
 

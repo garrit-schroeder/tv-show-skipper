@@ -98,7 +98,7 @@ def check_json_cache(season = None):
         file_paths.append(episode['Path'])
     return file_paths
 
-def process_jellyfin_shows(log_level = 0, save_json=False, slow_mode=False):
+def process_jellyfin_shows(log_level = 0, save_json=False):
     start = datetime.now()
 
     shows = get_jellyfin_shows()
@@ -114,7 +114,7 @@ def process_jellyfin_shows(log_level = 0, save_json=False, slow_mode=False):
 
         season_ndx = 1
         for season in show['Seasons']:
-            print_debug('%s/%s - %s' % (season_ndx, len(show['Seasons']), season['Name']))
+            print_debug('%s/%s - %s - %s episodes' % (season_ndx, len(show['Seasons']), season['Name'], len(season['Episodes'])))
             season_ndx += 1
 
             if len(season['Episodes']) < 2:
@@ -130,7 +130,7 @@ def process_jellyfin_shows(log_level = 0, save_json=False, slow_mode=False):
             season_start_time = datetime.now()
             file_paths = check_json_cache(season)
             if file_paths:
-                result = process_directory(file_paths=file_paths, log_level=log_level, slow_mode=slow_mode, use_ffmpeg=True)
+                result = process_directory(file_paths=file_paths, log_level=log_level)
                 if result:
                     save_season(season, result, save_json, log_level > 0)
                 else:
@@ -174,14 +174,12 @@ def main(argv):
             log_level = 1
         elif opt == '-j':
             save_json = True
-        elif opt == '-s':
-            slow_mode = True
     
     if server_url == '' or server_username == '' or server_password == '':
         print_debug('you need to export env variables: JELLYFIN_URL, JELLYFIN_USERNAME, JELLYFIN_PASSWORD\n')
         return
 
-    process_jellyfin_shows(log_level, save_json, slow_mode)
+    process_jellyfin_shows(log_level, save_json)
 
 def receiveSignal(signalNumber, frame):
     global should_stop

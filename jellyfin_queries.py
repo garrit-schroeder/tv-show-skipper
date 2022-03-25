@@ -26,7 +26,6 @@ def get_shows(client = None, path_map = []):
                     'enableImages': False,
                     'enableUserData': False,
                     'Fields': (
-                        "ProviderIds",
                         "Path"
                     ),
                     # added this limit for safety in case someone runs this without understanding what it does
@@ -80,7 +79,6 @@ def get_episodes(client = None, path_map = [], season = None):
                 'UserId': "{UserId}",
                 'SeasonId': season['SeasonId'],
                 'Fields': (
-                    "ProviderIds",
                     "Path"
                 )
             })
