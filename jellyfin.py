@@ -47,8 +47,12 @@ def get_jellyfin_shows():
     client = jellyfin_login(server_url, server_username, server_password)
     shows = jellyfin_queries.get_shows(client, path_map)
     for show in shows:
+        if should_stop:
+            break
         seasons = jellyfin_queries.get_seasons(client, path_map, show)
         for season in seasons:
+            if should_stop:
+                break
             season['Episodes'] = jellyfin_queries.get_episodes(client, path_map, season)
         show['Seasons'] = seasons
     jellyfin_logout()
@@ -98,6 +102,9 @@ def process_jellyfin_shows(log_level = 0, save_json=False, slow_mode=False):
     start = datetime.now()
 
     shows = get_jellyfin_shows()
+
+    if should_stop:
+        return
 
     show_ndx = 1
     for show in shows:
@@ -172,6 +179,7 @@ def main(argv):
     
     if server_url == '' or server_username == '' or server_password == '':
         print_debug('you need to export env variables: JELLYFIN_URL, JELLYFIN_USERNAME, JELLYFIN_PASSWORD\n')
+        return
 
     process_jellyfin_shows(log_level, save_json, slow_mode)
 
@@ -179,9 +187,10 @@ def receiveSignal(signalNumber, frame):
     global should_stop
     print_debug('Received signal:', signalNumber)
     if signalNumber == signal.SIGINT:
-        print_debug('will stop after current season')
+        print_debug('will stop')
         should_stop = True
     return
 
 if __name__ == "__main__":
-   main(sys.argv[1:])
+    signal.signal(signal.SIGINT, receiveSignal)
+    main(sys.argv[1:])

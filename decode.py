@@ -5,6 +5,9 @@ import cv2
 import imagehash
 import shutil
 import numpy
+import json
+import hashlib
+from math import floor
 import sys, getopt
 
 from time import sleep
@@ -23,6 +26,7 @@ preroll_seconds = 0 # adjust the end time to return n seconds prior to the calcu
                     # jellyfin_auto_skip.py also handles pre-roll so adjust it there
                     # adjusting it here bakes the pre-rolled value into the result
 max_fingerprint_mins = 10
+min_intro_length_sec = 15
 check_frame = 10  # 1 (slow) to 10 (fast) is fine 
 workers = 4 # number of executors to use
 target_image_height = 180 # scale frames to height of 180px
@@ -37,12 +41,10 @@ def dict_by_value(dict, value):
         if age == value:
             return name
 
-
 def write_fingerprint(path, fingerprint):
     path = "fingerprints/" + replace(path) + "/fingerprint.txt"
     with open(path, "w+") as text_file:
         text_file.write(fingerprint)
-
 
 def replace(s):
     return re.sub('[^A-Za-z0-9]+', '', s)
@@ -62,58 +64,15 @@ def get_timestamp_from_frame(profile):
     profile['start_time'] = str(timedelta(seconds=start_time)).split('.')[0]
     profile['end_time'] = str(timedelta(seconds=end_time)).split('.')[0]
 
-def get_scaled_image(image: Image, log_level):
-    width, height = image.size
-
-    new_width = width
-    new_height = height
-    
-    while new_height >= target_image_height:
-        tmp_width = new_width / 2
-        tmp_height = new_height / 2
-        if tmp_width < target_image_height:
-            break
-        if tmp_width % 2 != 0 or tmp_height % 2 != 0:
-            break
-        new_height = int(tmp_height)
-        new_width = int(tmp_width)
-    if new_height != height:
-        return image.resize((new_width, new_height))
-    return image
-
-def create_video_fingerprint(profile, cleanup, log_level, slow_mode, use_ffmpeg):
-    video_fingerprint = ""
+def create_video_fingerprint(profile, log_level):
+    video_fingerprint = ''
 
     quarter_frames_or_first_X_mins = min(int(profile['total_frames'] / 4), int(profile['fps'] * 60 * max_fingerprint_mins))
-    if use_ffmpeg:
-        video_fingerprint = get_fingerprint_ffmpeg(profile['path'], quarter_frames_or_first_X_mins, log_level)
-        if video_fingerprint != '':
-            return video_fingerprint
+    video_fingerprint = get_fingerprint_ffmpeg(profile['path'], quarter_frames_or_first_X_mins, log_level)
 
-    video = cv2.VideoCapture(profile['path'])
-    sucess, frame = video.read()
-    count = 0
-    Path("fingerprints/" + replace(profile['path']) + "/frames").mkdir(parents=True, exist_ok=True)
-    while count < quarter_frames_or_first_X_mins:  # what is less - the first quarter or the first 10 minutes
-        #cv2.imwrite("fingerprints/" + replace(path) + "/frames/frame%d.jpg" % count, frame)
-        #image = Image.fromarray(numpy.uint8(frame))
-        image = get_scaled_image(Image.fromarray(numpy.uint8(frame)), log_level)
-        frame_fingerprint = str(imagehash.phash(image))
-        video_fingerprint += frame_fingerprint
-        if count % 1000 == 0:
-            if not cleanup:
-                image.save("fingerprints/" + replace(profile['path']) + "/frames/frame%d.jpg" % count)
-            if log_level > 1:
-                print_debug(profile['path'] + " " + str(count) + "/" + str(int(profile['total_frames'] / 4)))
-        success, frame = video.read()
-        count += 1
-        if slow_mode:
-            sleep(0.005)
-    if video_fingerprint == "":
+    if video_fingerprint == '':
         raise Exception("error creating fingerprint for video [%s]" % profile['path'])
-    video.release()
     return video_fingerprint
-
 
 def get_equal_frames(print1, print2):
     equal_frames = []
@@ -122,7 +81,6 @@ def get_equal_frames(print1, print2):
                                                                      j * 16 * check_frame:j * 16 * check_frame + 16]:
             equal_frames.append(print1[j * 16 * check_frame:j * 16 * check_frame + 16])
     return equal_frames
-
 
 def get_start_end(print1, print2):
     highest_equal_frames = []
@@ -140,8 +98,7 @@ def get_start_end(print1, print2):
     search2 = re.search(p, "".join(print2))
     return (int(search.start() / 16), int(search.end() / 16)), (int(search2.start() / 16), int(search2.end() / 16))
 
-
-def get_or_create_fingerprint(file, cleanup, log_level, slow_mode, use_ffmpeg):
+def get_or_create_fingerprint(file, cleanup, log_level):
     start = datetime.now()
     video = cv2.VideoCapture(file)
     fps = video.get(cv2.CAP_PROP_FPS)
@@ -160,7 +117,8 @@ def get_or_create_fingerprint(file, cleanup, log_level, slow_mode, use_ffmpeg):
     else:
         if log_level > 0:
             print_debug('creating new fingerprint for [%s]' % file)
-        fingerprint = create_video_fingerprint(profile, cleanup, log_level, slow_mode, use_ffmpeg)
+        
+        fingerprint = create_video_fingerprint(profile, log_level)
         if not cleanup:
             write_fingerprint(file, fingerprint)
     
@@ -190,11 +148,45 @@ def reject_outliers(data, m = 6.):
         return output[0]
     return output
 
+def save_season_fingerprint(fingerprints, profiles, ndx, filtered_lengths, log_level):
+    size = len(filtered_lengths)
+    sum = 0
+    for f in filtered_lengths:
+        sum += f
+    average = int(sum / size)
+
+    name = ''
+    for profile in profiles:
+        name += replace(profile['path'])
+    hash_object = hashlib.md5(name.encode())
+    name = hash_object.hexdigest()
+
+    season_fingerprint = {}
+    season_fingerprint.update(profiles[ndx])
+    season_fingerprint['fingerprint'] = fingerprints[ndx]
+    season_fingerprint['average_frames'] = average
+    season_fingerprint['average_sample_size'] = len(filtered_lengths)
+
+    path = "fingerprints/" + name + ".json"
+    Path("fingerprints/").mkdir(parents=True, exist_ok=True)
+    with open(path, "w+") as json_file:
+        json.dump(season_fingerprint, json_file, indent = 4)
+
 def correct_errors(fingerprints, profiles, log_level):
+
+    # build a list of intro lengths with outliers rejected
     lengths = []
     for profile in profiles:
         lengths.append(profile['end_frame'] - profile['start_frame'])
     filtered_lengths = reject_outliers(lengths)
+
+    if len(filtered_lengths) < 1:
+        for profile in profiles:
+            profile['start_frame'] = 0
+            profile['end_frame'] = 0
+        if log_level > 0:
+            print_debug('failed to correct - could not establish consistency between episodes')
+        return
 
     size = len(filtered_lengths)
     sum = 0
@@ -206,6 +198,8 @@ def correct_errors(fingerprints, profiles, log_level):
         print_debug('average length in frames [%s] from %s of %s files' % (average, len(filtered_lengths), len(profiles)))
         print_timestamp('average length (time)', 0, average, profiles[0]['fps'])
 
+    # build a list of conforming and non conforming profiles (int indexes)
+    # loop through profiles and check if their duration is in the filtered list of intro lengths
     conforming_profiles = []
     non_conforming_profiles = []
     for ndx in range(0, len(profiles)):
@@ -215,13 +209,15 @@ def correct_errors(fingerprints, profiles, log_level):
         if profiles[ndx]['end_frame'] - profiles[ndx]['start_frame'] in filtered_lengths:
             conforming_profiles.append(ndx)
         else:
-            print_debug('rejected file [%s] with start %s end %s' % (profiles[ndx]['path'], profiles[ndx]['start_frame'], profiles[ndx]['end_frame']))
+            print_debug('\nrejected file [%s] with start %s end %s' % (profiles[ndx]['path'], profiles[ndx]['start_frame'], profiles[ndx]['end_frame']))
             print_timestamp(profiles[ndx]['path'], profiles[ndx]['start_frame'], profiles[ndx]['end_frame'], profiles[ndx]['fps'])
             with open('rejects.txt', "a") as logger:
                 logger.write('rejected file [%s] diff from average %s start %s end %s average %s fps %s\n' % (profiles[ndx]['path'], diff_from_avg, profiles[ndx]['start_frame'], profiles[ndx]['end_frame'], average, profiles[ndx]['fps']))
             non_conforming_profiles.append(ndx)
+
     if log_level > 0:
-        print_debug('rejected start frame values from %s of %s results' % (len(non_conforming_profiles), len(profiles)))
+        print_debug('\nrejected start frame values from %s of %s results\n' % (len(non_conforming_profiles), len(profiles)))
+
     if len(conforming_profiles) < 1:
         if log_level > 0:
             print_debug('all profiles were rejected')
@@ -230,27 +226,58 @@ def correct_errors(fingerprints, profiles, log_level):
             profile['end_frame'] = 0
         return
 
+    # sort the list of conforming profile indexes and find the mean value
+    # this profile will be the reference profile used when repairing the rejected profiles
+    conforming_profiles.sort()
+    ref_profile_ndx = conforming_profiles[int(floor(len(conforming_profiles) / 2))]
+
+    save_season_fingerprint(fingerprints, profiles, ref_profile_ndx, filtered_lengths, log_level)
+
+    if len(non_conforming_profiles) < 1:
+        if log_level > 0:
+            print_debug('no profiles were rejected!')
+        return
+
+    # reprocess the rejected profiles by comparing them to the reference profile
     for nprofile in non_conforming_profiles:
         if log_level > 0:
-            print_debug('reprocessing %s by comparing to %s' % (profiles[nprofile]['path'], profiles[conforming_profiles[0]]['path']))
-        process_pairs(fingerprints, profiles, conforming_profiles[0], nprofile, SECOND, log_level)
+            print_debug('reprocessing %s by comparing to %s' % (profiles[nprofile]['path'], profiles[ref_profile_ndx]['path']))
+        process_pairs(fingerprints, profiles, conforming_profiles[ref_profile_ndx], nprofile, SECOND, log_level)
+    
+    # repeat building a list of lengths and filtering them
+    lengths = []
+    for profile in profiles:
+        lengths.append(profile['end_frame'] - profile['start_frame'])
+    new_filtered_lengths = reject_outliers(lengths)
+    
+    # repeat checking each profile's duration against the new filtered list of lengths
+    repaired = 0
+    for nprofile in range(0, len(profiles)):
+        if profiles[nprofile]['end_frame'] - profiles[nprofile]['start_frame'] in new_filtered_lengths:
+            if nprofile in non_conforming_profiles:
+                repaired += 1
+                with open('rejects.txt', "a") as logger:
+                    logger.write('rejected file successfully reprocessed [%s] start %s end %s\n' % (profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame']))
+                if log_level > 0:
+                    print_debug('\nreprocess successful for file [%s] new start %s end %s' % (profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame']))
+                    print_timestamp(profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame'], profiles[nprofile]['fps'])
+        else:
+            if nprofile in non_conforming_profiles:
+                profiles[nprofile]['start_frame'] = 0
+                profiles[nprofile]['end_frame'] = 0
 
-        diff_from_avg = profiles[nprofile]['end_frame'] - profiles[nprofile]['start_frame'] - average
-        if diff_from_avg > int(10 * profiles[nprofile]['fps']) or \
-            profiles[nprofile]['end_frame'] - profiles[nprofile]['start_frame'] < int(15 * profiles[nprofile]['fps']):
-            if log_level > 0:
-                print_debug('failed to locate intro by reprocessing %s' % profiles[nprofile]['path'])
-                print_debug('file [%s] new start %s end %s' % (profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame']))
-                print_timestamp(profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame'], profiles[nprofile]['fps'])
+                if log_level > 0:
+                    print_debug('\nfailed to locate intro by reprocessing %s' % profiles[nprofile]['path'])
+                    print_debug('file [%s] new start %s end %s' % (profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame']))
+                    print_timestamp(profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame'], profiles[nprofile]['fps'])
                 with open('rejects.txt', "a") as logger:
                     logger.write('rejected file failed to be reprocessed [%s] start %s end %s\n' % (profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame']))
-            profiles[nprofile]['start_frame'] = 0
-            profiles[nprofile]['end_frame'] = 0
-        else:
-            print_debug('reprocess successful for file [%s] new start %s end %s' % (profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame']))
-            print_timestamp(profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame'], profiles[nprofile]['fps'])
-            with open('rejects.txt', "a") as logger:
-                logger.write('rejected file successfully reprocessed [%s] start %s end %s\n' % (profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame']))
+            else:
+                if log_level > 0:
+                    print_debug('\nerror - previously compliant profile %s is not longer maked compliant' % profiles[nprofile]['path'])
+    if log_level > 0:
+        print_debug('\nrepaired %s/%s non conforming profiles\n' % (repaired, len(non_conforming_profiles)))
+
     if len(non_conforming_profiles) > 0:
         with open('rejects.txt', "a") as logger:
             logger.write('\n')
@@ -274,15 +301,13 @@ def process_pairs(fingerprints, profiles, ndx_1, ndx_2, mode, log_level):
         if log_level > 0:
             print_debug("could not compare fingerprints from files " + profiles[ndx_1]['path'] + " " + profiles[ndx_2]['path'])
 
-def process_directory(file_paths = [], log_level=0, cleanup=True, slow_mode=False, use_ffmpeg=True):
+def process_directory(file_paths = [], log_level=0, cleanup=True):
     start = datetime.now()
     if log_level > 0:
         print_debug('started at', start)
         print_debug("Check Frame: %s\n" % str(check_frame))
         if cleanup:
             print_debug('fingerprint files will be cleaned up')
-        if slow_mode:
-            print_debug('slow mode enabled')
 
     if not check_files_exist(file_paths):
         if log_level > 0:
@@ -303,26 +328,23 @@ def process_directory(file_paths = [], log_level=0, cleanup=True, slow_mode=Fals
         except OSError as e:
             print_debug("Error: %s : %s" % ('fingerprints', e.strerror))
 
-    profiles = []
-    fingerprints = []
+    profiles = [] # list of dictionaries containing path, start/end frame & time, fps
+    fingerprints = [] # list of hash values
 
-    if use_ffmpeg:
-        for file_path in file_paths:
-            fingerprint, profile = get_or_create_fingerprint(file_path, cleanup, log_level, slow_mode, use_ffmpeg)
-            fingerprints.append(fingerprint)
-            profiles.append(profile)
-    else:
-        with ThreadPoolExecutor(max_workers=workers) as executor:
-            futures = []
-            for file_path in file_paths:
-                futures.append(executor.submit(get_or_create_fingerprint, file_path, cleanup, log_level, slow_mode, use_ffmpeg))
-
-            for future in futures:
-                fingerprint, profile = future.result()
-                fingerprints.append(fingerprint)
-                profiles.append(profile)
+    for file_path in file_paths:
+        fingerprint, profile = get_or_create_fingerprint(file_path, cleanup, log_level)
+        fingerprints.append(fingerprint)
+        profiles.append(profile)
 
     counter = 0
+
+    # loop through each pair and store the start/end frames in their profiles
+    # then do the same for the remaining profile if count is odd
+    #
+    # use mode: FIRST, SECOND, BOTH to decide whether to save the values to the first, second, or both profiles
+    # changing modes is useful for processing a new profile against one that's already processed
+    # for instance, if a profile is rejected it could be reprocessed against a different profile without risking...
+    # ...overwriting the the start/end frame values for the reference profile
     while len(fingerprints) - 1 > counter:
         process_pairs(fingerprints, profiles, counter, counter + 1, BOTH, log_level)
         counter += 2
@@ -330,8 +352,12 @@ def process_directory(file_paths = [], log_level=0, cleanup=True, slow_mode=Fals
         process_pairs(fingerprints, profiles, -2, -1, SECOND, log_level)
 
     correct_errors(fingerprints, profiles, log_level)
+
+    # finally, automatically reject episodes with intros shorted than a specified length (default 15 seconds)
+    # apply pre-roll if wanted
+    # use the fps and start/end frame values to calculate the timestamps for the intros and add them to the profiles
     for profile in profiles:
-        if profile['end_frame'] - profile['start_frame'] < int(15 * profile['fps']):
+        if profile['end_frame'] - profile['start_frame'] < int(min_intro_length_sec * profile['fps']):
             if log_level > 1:
                 print_debug('intro is less than 15 seconds - skipping')
             profile['start_frame'] = 0
@@ -406,7 +432,7 @@ def main(argv):
     else:
         print_debug('input directory invalid or cannot be accessed')
 
-    result = process_directory(file_paths=file_paths, log_level=log_level, cleanup=cleanup, slow_mode=slow_mode, use_ffmpeg=use_ffmpeg)
+    result = process_directory(file_paths=file_paths, log_level=log_level, cleanup=cleanup)
     print(result)
 
 if __name__ == "__main__":
