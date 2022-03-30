@@ -26,7 +26,6 @@ def get_shows(client = None, path_map = []):
                     'enableImages': False,
                     'enableUserData': False,
                     'Fields': (
-                        "ProviderIds",
                         "Path"
                     ),
                     # added this limit for safety in case someone runs this without understanding what it does
@@ -59,6 +58,7 @@ def get_seasons(client = None, path_map = [], series = None):
             for item in result['Items']:
                 season = {}
                 season['Name'] = item['Name']
+                season['SeriesName'] = series['Name']
                 season['SeriesId'] = series['SeriesId']
                 season['SeasonId'] = item['Id']
                 season['Path'] = map_path(item['Path'], path_map) if 'Path' in item else None
@@ -79,7 +79,6 @@ def get_episodes(client = None, path_map = [], season = None):
                 'UserId': "{UserId}",
                 'SeasonId': season['SeasonId'],
                 'Fields': (
-                    "ProviderIds",
                     "Path"
                 )
             })
@@ -88,10 +87,15 @@ def get_episodes(client = None, path_map = [], season = None):
             for item in result['Items']:
                 episode = {}
                 episode['Name'] = item['Name']
+                episode['SeriesName'] = season['SeriesName']
+                episode['SeasonName'] = season['Name']
                 episode['Duration'] = int(item['RunTimeTicks']) / 10000
                 episode['SeriesId'] = season['SeriesId']
                 episode['SeasonId'] = season['SeasonId']
                 episode['EpisodeId'] = item['Id']
+                episode['ProviderIds'] = {}
+                if 'ProviderIds' in item:
+                    episode['ProviderIds'] = item['ProviderIds'].deepcopy()
                 if 'Path' in item:
                     episode['Path'] = map_path(item['Path'], path_map)
                     episodes.append(episode)
