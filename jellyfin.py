@@ -1,8 +1,11 @@
 import os
+import re
 import sys, getopt
 import jellyfin_queries
 import json
 import signal
+import shutil
+import hashlib
 
 
 from time import sleep
@@ -24,6 +27,9 @@ def print_debug(*a):
     # Here a is the array holding the objects
     # passed as the argument of the function
     print(*a, file = sys.stderr)
+
+def replace(s):
+    return re.sub('[^A-Za-z0-9]+', '', s)
 
 def get_path_map():
     path_map = []
@@ -59,10 +65,30 @@ def get_jellyfin_shows():
 
     return shows
 
+def copy_season_fingerprint(result = [], dir_path = "", debug = False):
+    if not result or dir_path == "":
+        return
+
+    name = ''
+    for profile in result:
+        name += replace(profile['path'])
+    hash_object = hashlib.md5(name.encode())
+    name = hash_object.hexdigest()
+
+    src_path = "fingerprints/" + name + ".json"
+    dst_path = os.path.join(dir_path, 'season' + '.json')
+    Path(dir_path).mkdir(parents=True, exist_ok=True)
+    if os.path.exists(src_path):
+        if debug:
+            print_debug('saving season fingerprint to jellyfin_cache')
+        shutil.copyfile(src_path, dst_path)
+
 def save_season(season = None, result = None, save_json = False, debug = False):
     if not result or result == None or season == None:
         return
     path = "jellyfin_cache/" + str(season['SeriesId']) + "/" + str(season['SeasonId'])
+    if save_json:
+        copy_season_fingerprint(result, path, debug)
 
     for ndx in range(0, len(season['Episodes'])):
         if ndx >= len(result):
@@ -130,11 +156,16 @@ def process_jellyfin_shows(log_level = 0, save_json=False):
             season_start_time = datetime.now()
             file_paths = check_json_cache(season)
             if file_paths:
-                result = process_directory(file_paths=file_paths, log_level=log_level)
+                result = process_directory(file_paths=file_paths, cleanup=False,log_level=log_level)
                 if result:
                     save_season(season, result, save_json, log_level > 0)
                 else:
                     print_debug('no results - the decoder may not have access to the specified media files')
+            if os.path.isdir('fingerprints'):
+                try:
+                    shutil.rmtree('fingerprints')
+                except OSError as e:
+                    print_debug("Error: %s : %s" % ('deleting fingerprints directory', e.strerror))
             season_end_time = datetime.now()
             print_debug('processed season [%s] in %s' % (season['Name'], str(season_end_time - season_start_time)))
             if file_paths:

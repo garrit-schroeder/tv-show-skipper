@@ -1,4 +1,3 @@
-from cmath import log
 import re
 import os
 import cv2
