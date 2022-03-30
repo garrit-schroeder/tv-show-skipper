@@ -57,7 +57,7 @@ def get_fingerprint_ffmpeg(path, frame_nb, log_level=1):
     for ndx in range(1, frame_nb + 1):
         filename = "fingerprints/" + replace(path) + "/frames/frame-%s.jpeg" % str(ndx).rjust(8, "0")
         with Image.open(filename) as image:
-            frame_fingerprint = str(imagehash.phash(image))
+            frame_fingerprint = str(imagehash.dhash(image))
             video_fingerprint += frame_fingerprint
     try:
         shutil.rmtree("fingerprints/" + replace(path)  + "/frames")

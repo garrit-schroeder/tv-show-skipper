@@ -15,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor, process
 from datetime import datetime, timedelta
 from pathlib import Path
 from PIL import Image
+import pandas
 
 from ffmpeg_fingerprint import get_fingerprint_ffmpeg
 
@@ -135,19 +136,6 @@ def check_files_exist(file_paths = []):
             return False
     return True
 
-def reject_outliers(data, m = 3.5):
-    if not isinstance(data, numpy.ndarray):
-        data = numpy.array(data)
-    d = numpy.abs(data - numpy.median(data))
-    mdev = numpy.median(d)
-    s = d / (mdev if mdev else 0.)
-    output = data[s<m].tolist()
-
-    # sometimes numpy tolist() returns a nested list
-    if type(output[0]) == list:
-        return output[0]
-    return output
-
 def save_season_fingerprint(fingerprints, profiles, ndx, filtered_lengths, log_level):
     size = len(filtered_lengths)
     sum = 0
@@ -171,6 +159,28 @@ def save_season_fingerprint(fingerprints, profiles, ndx, filtered_lengths, log_l
     Path("fingerprints/").mkdir(parents=True, exist_ok=True)
     with open(path, "w+") as json_file:
         json.dump(season_fingerprint, json_file, indent = 4)
+
+
+'''
+def reject_outliers(data, m = 1.):
+    if not isinstance(data, numpy.ndarray):
+        data = numpy.array(data)
+    d = numpy.abs(data - numpy.median(data))
+    mdev = numpy.median(d)
+    s = d / (mdev if mdev else 0.)
+    output = data[s<m].tolist()
+
+    # sometimes numpy tolist() returns a nested list
+    if type(output[0]) == list:
+        return output[0]
+    return output
+'''
+def reject_outliers(input_list, iq_range=0.2):
+    sr = pandas.Series(input_list, copy=True)
+    pcnt = (1 - iq_range) / 2
+    qlow, median, qhigh = sr.dropna().quantile([pcnt, 0.50, 1-pcnt])
+    iqr = qhigh - qlow
+    return sr[ (sr - median).abs() <= iqr].values.tolist()
 
 def correct_errors(fingerprints, profiles, log_level):
 
@@ -206,7 +216,9 @@ def correct_errors(fingerprints, profiles, log_level):
         diff_from_avg = abs(profiles[ndx]['end_frame'] - profiles[ndx]['start_frame'] - average)
         if log_level > 1:
             print_debug('file [%s] diff from average %s' % (profiles[ndx]['path'], diff_from_avg))
-        if profiles[ndx]['end_frame'] - profiles[ndx]['start_frame'] in filtered_lengths:
+        if profiles[ndx]['end_frame'] - profiles[ndx]['start_frame'] in filtered_lengths or \
+            diff_from_avg < int(15 * profiles[ndx]['fps']):
+
             conforming_profiles.append(ndx)
         else:
             print_debug('\nrejected file [%s] with start %s end %s' % (profiles[ndx]['path'], profiles[ndx]['start_frame'], profiles[ndx]['end_frame']))
@@ -229,6 +241,7 @@ def correct_errors(fingerprints, profiles, log_level):
     # sort the list of conforming profile indexes and find the mean value
     # this profile will be the reference profile used when repairing the rejected profiles
     conforming_profiles.sort()
+    shortest_duration = profiles[conforming_profiles[0]]['end_frame'] - profiles[conforming_profiles[0]]['start_frame']
     ref_profile_ndx = conforming_profiles[int(floor(len(conforming_profiles) / 2))]
 
     save_season_fingerprint(fingerprints, profiles, ref_profile_ndx, filtered_lengths, log_level)
@@ -254,6 +267,11 @@ def correct_errors(fingerprints, profiles, log_level):
     repaired = 0
     for nprofile in range(0, len(profiles)):
         diff_from_avg = abs(profiles[nprofile]['end_frame'] - profiles[nprofile]['start_frame'] - average)
+        guessed_start = profiles[nprofile]['end_frame'] - shortest_duration
+        if guessed_start < 0:
+            guessed_start = 0
+        guessed_start_diff = abs(profiles[nprofile]['end_frame'] - guessed_start - average)
+        #print(shortest_duration, guessed_start, guessed_start_diff)
         if profiles[nprofile]['end_frame'] - profiles[nprofile]['start_frame'] in new_filtered_lengths or \
                 diff_from_avg < int(15 * profiles[nprofile]['fps']):
 
@@ -263,6 +281,15 @@ def correct_errors(fingerprints, profiles, log_level):
                     logger.write('rejected file successfully reprocessed [%s] start %s end %s\n' % (profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame']))
                 if log_level > 0:
                     print_debug('\nreprocess successful for file [%s] new start %s end %s' % (profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame']))
+                    print_timestamp(profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame'], profiles[nprofile]['fps'])
+        elif guessed_start_diff < int(15 * profiles[nprofile]['fps']):
+            if nprofile in non_conforming_profiles:
+                repaired += 1
+                profiles[nprofile]['start_frame'] = profiles[nprofile]['end_frame'] - shortest_duration
+                with open('rejects.txt', "a") as logger:
+                    logger.write('reprocess successful by guessing start for file [%s] - start %s end %s\n' % (profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame']))
+                if log_level > 0:
+                    print_debug('\nreprocess successful by guessing start for file [%s] - new start %s end %s' % (profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame']))
                     print_timestamp(profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame'], profiles[nprofile]['fps'])
         else:
             if nprofile in non_conforming_profiles:
@@ -276,7 +303,7 @@ def correct_errors(fingerprints, profiles, log_level):
                 profiles[nprofile]['end_frame'] = 0
             else:
                 if log_level > 0:
-                    print_debug('\nerror - previously compliant profile %s is not longer marked compliant' % profiles[nprofile]['path'])
+                    print_debug('\warning - previously compliant profile %s would have been rejected by new filter' % profiles[nprofile]['path'])
     if log_level > 0:
         print_debug('\nrepaired %s/%s non conforming profiles\n' % (repaired, len(non_conforming_profiles)))
 
@@ -347,13 +374,25 @@ def process_directory(file_paths = [], log_level=0, cleanup=True):
     # changing modes is useful for processing a new profile against one that's already processed
     # for instance, if a profile is rejected it could be reprocessed against a different profile without risking...
     # ...overwriting the the start/end frame values for the reference profile
-    while len(fingerprints) - 1 > counter:
-        process_pairs(fingerprints, profiles, counter, counter + 1, BOTH, log_level)
-        counter += 2
-    if (len(fingerprints) % 2) != 0:
-        process_pairs(fingerprints, profiles, -2, -1, SECOND, log_level)
+    process_pairs_start = datetime.now()
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = []
+        while len(fingerprints) - 1 > counter:
+            futures.append(executor.submit(process_pairs, fingerprints, profiles, counter, counter + 1, BOTH, log_level))
+            counter += 2
+        if (len(fingerprints) % 2) != 0:
+            futures.append(executor.submit(process_pairs, fingerprints, profiles, -2, -1, SECOND, log_level))
+        for future in futures:
+            future.result()
+    process_pairs_end = datetime.now()
+    if log_level > 0:
+        print_debug("processed fingerprint pairs in: " + str(process_pairs_end - process_pairs_start))
 
+    correct_errors_start = datetime.now()
     correct_errors(fingerprints, profiles, log_level)
+    correct_errors_end = datetime.now()
+    if log_level > 0:
+        print_debug("finished error correction in: " + str(correct_errors_end - correct_errors_start))
 
     # finally, automatically reject episodes with intros shorted than a specified length (default 15 seconds)
     # apply pre-roll if wanted
@@ -361,7 +400,7 @@ def process_directory(file_paths = [], log_level=0, cleanup=True):
     for profile in profiles:
         if profile['end_frame'] - profile['start_frame'] < int(min_intro_length_sec * profile['fps']):
             if log_level > 1:
-                print_debug('intro is less than %s seconds - skipping' % min_intro_length_sec)
+                print_debug('%s - intro is less than %s seconds - skipping' % (profile['path'], min_intro_length_sec))
             profile['start_frame'] = 0
             profile['end_frame'] = 0
         elif preroll_seconds > 0 and profile['end_frame'] > profile['start_frame'] + int(profile['fps'] * preroll_seconds):
