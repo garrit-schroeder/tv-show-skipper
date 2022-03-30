@@ -26,7 +26,7 @@ preroll_seconds = 0 # adjust the end time to return n seconds prior to the calcu
                     # jellyfin_auto_skip.py also handles pre-roll so adjust it there
                     # adjusting it here bakes the pre-rolled value into the result
 max_fingerprint_mins = 10
-min_intro_length_sec = 15
+min_intro_length_sec = 10
 check_frame = 10  # 1 (slow) to 10 (fast) is fine 
 workers = 4 # number of executors to use
 target_image_height = 180 # scale frames to height of 180px
@@ -135,12 +135,12 @@ def check_files_exist(file_paths = []):
             return False
     return True
 
-def reject_outliers(data, m = 9.):
+def reject_outliers(data, m = 3.5):
     if not isinstance(data, numpy.ndarray):
         data = numpy.array(data)
     d = numpy.abs(data - numpy.median(data))
     mdev = numpy.median(d)
-    s = d / (mdev if mdev else 1.)
+    s = d / (mdev if mdev else 0.)
     output = data[s<m].tolist()
 
     # sometimes numpy tolist() returns a nested list
@@ -361,7 +361,7 @@ def process_directory(file_paths = [], log_level=0, cleanup=True):
     for profile in profiles:
         if profile['end_frame'] - profile['start_frame'] < int(min_intro_length_sec * profile['fps']):
             if log_level > 1:
-                print_debug('intro is less than 15 seconds - skipping')
+                print_debug('intro is less than %s seconds - skipping' % min_intro_length_sec)
             profile['start_frame'] = 0
             profile['end_frame'] = 0
         elif preroll_seconds > 0 and profile['end_frame'] > profile['start_frame'] + int(profile['fps'] * preroll_seconds):
