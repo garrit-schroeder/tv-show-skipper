@@ -14,8 +14,60 @@ By default there is little/no output to stdout or stderr until the script has fi
 
 When using `jellyfin.py`, the results can be saved to `json` using the `-j` parameter. These will be saved in a sub-directory in `pwd`. Saving the results as json also allows them to be checked in subsequent runs to skip already processed files.
 
+## Examples
+scan your jellyfin library, store the result in json, debug logging enabled, logging debug output to file enabled
+
+`jellyfin.py -j -d -l`
+
+monitor your jellyfin sessions and automatically skip intros using the stored json data
+
+`jellyfin_auto_skip.py`
+
+manually scan a directory containing at least 2 video files, debug logging enabled, logging debug output to file enabled, delete fingerprint data afterward
+`decode.py -i /path/to/tv/season -d -l -c`
+
+make the script aware of your host:container path mapping by editing `path_map.txt`
+
+```
+# use this file if you run jellyfin in a container
+# example:
+# /host/system/tv/path:/jellyfin/container/tv/path
+
+/srv/my-mnt-title/media/tv:/data/tv
+```
 ## Running in Docker
-  ### Parameters
+
+  ### Docker Compose - Scanner & Skipper 
+```
+---
+version: "3.8"
+
+services:
+  Jellyfin-Intro-Scanner:
+    image: ghcr.io/mueslimak3r/jellyfin-intro-scanner:latest
+
+    container_name: Jellyfin-Intro-Scanner
+    environment:
+      - JELLYFIN_URL=http://Jellyfin:port
+      - JELLYFIN_USERNAME=username
+      - JELLYFIN_PASSWORD=password
+    volumes:
+      - /path/to/media/on/host:/path/to/media/on/Jellyfin/container
+      - /path/to/config:/app/config
+    restart: unless-stopped
+
+  Jellyfin-Intro-Skipper:
+    image: ghcr.io/mueslimak3r/jellyfin-intro-skipper:latest
+
+    container_name: Jellyfin-Intro-Skipper
+    environment:
+      - JELLYFIN_URL=http://Jellyfin:port
+      - JELLYFIN_USERNAME=username
+      - JELLYFIN_PASSWORD=password
+    volumes:
+      - /path/to/config:/app/config
+    restart: unless-stopped
+```
 
 || Parameter  | Function |
 | ---                                        | ---                                        | ---       |
@@ -51,59 +103,7 @@ docker run -d \
   --restart unless-stopped \
   ghcr.io/mueslimak3r/jellyfin-intro-skipper:latest
 ```
-  ### Scanner & Skipper - Docker Compose
-```
----
-version: "3.8"
 
-services:
-  Jellyfin-Intro-Scanner:
-    image: ghcr.io/mueslimak3r/jellyfin-intro-scanner:latest
-
-    container_name: Jellyfin-Intro-Scanner
-    environment:
-      - JELLYFIN_URL=http://Jellyfin:port
-      - JELLYFIN_USERNAME=username
-      - JELLYFIN_PASSWORD=password
-    volumes:
-      - /path/to/media/on/host:/path/to/media/on/Jellyfin/container
-      - /path/to/config:/app/config
-    restart: unless-stopped
-
-  Jellyfin-Intro-Skipper:
-    image: ghcr.io/mueslimak3r/jellyfin-intro-skipper:latest
-
-    container_name: Jellyfin-Intro-Skipper
-    environment:
-      - JELLYFIN_URL=http://Jellyfin:port
-      - JELLYFIN_USERNAME=username
-      - JELLYFIN_PASSWORD=password
-    volumes:
-      - /path/to/config:/app/config
-    restart: unless-stopped
-```
-
-## Examples
-scan your jellyfin library, store the result in json, debug logging enabled, logging debug output to file enabled
-
-`jellyfin.py -j -d -l`
-
-monitor your jellyfin sessions and automatically skip intros using the stored json data
-
-`jellyfin_auto_skip.py`
-
-manually scan a directory containing at least 2 video files, debug logging enabled, logging debug output to file enabled, delete fingerprint data afterward
-`decode.py -i /path/to/tv/season -d -l -c`
-
-make the script aware of your host:container path mapping by editing `path_map.txt`
-
-```
-# use this file if you run jellyfin in a container
-# example:
-# /host/system/tv/path:/jellyfin/container/tv/path
-
-/srv/my-mnt-title/media/tv:/data/tv
-```
 
 ## Disclaimer
 
