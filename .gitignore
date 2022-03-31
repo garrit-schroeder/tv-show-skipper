@@ -2,6 +2,8 @@
 __pycache__/
 *.py[cod]
 *.json
+*.txt
 *.DS_STORE
 cred.json
 venv
+config/data
