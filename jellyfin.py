@@ -17,6 +17,7 @@ from decode import process_directory
 server_url = os.environ['JELLYFIN_URL'] if 'JELLYFIN_URL' in os.environ else ''
 server_username = os.environ['JELLYFIN_USERNAME'] if 'JELLYFIN_USERNAME' in os.environ else ''
 server_password = os.environ['JELLYFIN_PASSWORD'] if 'JELLYFIN_PASSWORD' in os.environ else ''
+env_path_map_str = os.environ['PATH_MAP'] if 'PATH_MAP' in os.environ else ''
 
 config_path = os.environ['CONFIG_DIR'] if 'CONFIG_DIR' in os.environ else './config'
 data_path = os.environ['DATA_DIR'] if 'DATA_DIR' in os.environ else os.path.join(config_path, 'data')
@@ -47,8 +48,17 @@ def replace(s):
 
 def get_path_map():
     path_map = []
+
+    if env_path_map_str != '':
+        env_maps = env_path_map_str.strip().split(',')
+        for m in env_maps:
+            map = m.strip().split(':')
+            if len(map) != 2:
+                continue
+            path_map.append((map[0], map[1]))
+
     if not os.path.exists(os.path.join(config_path, 'path_map.txt')):
-        return []
+        return path_map
 
     with open(os.path.join(config_path, 'path_map.txt'), 'r') as file:
         for line in file:
