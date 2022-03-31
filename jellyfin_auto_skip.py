@@ -131,6 +131,7 @@ def monitor_loop():
         return
     
     init_client()
+    print('listening for jellyfin sessions...')
     while not should_exit:
         if not monitor_sessions() and not should_exit:
             init_client()
