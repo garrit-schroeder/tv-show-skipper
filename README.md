@@ -23,7 +23,7 @@ monitor your jellyfin sessions and automatically skip intros using the stored js
 
 `jellyfin_auto_skip.py`
 
-manually scan a directory containing at least 2 video files, debug logging enabled, , logging debug output to file enabled, delete fingerpring data afterward
+manually scan a directory containing at least 2 video files, debug logging enabled, logging debug output to file enabled, delete fingerprint data afterward
 `decode.py -i /path/to/tv/season -d -l -c`
 
 make the script aware of your host:container path mapping by editing `path_map.txt`
