@@ -35,9 +35,9 @@ docker run -d \
     -e JELLYFIN_URL=http://Jellyfin:port \
     -e JELLYFIN_USERNAME=username \
     -e JELLYFIN_PASSWORD='password' \
+    -e PATH_MAP="/srv/mount1/tv:/data/tv1,/srv/mount2/tv:/data/tv2" \
     -v /path/to/media/on/host:/path/to/media/on/Jellyfin/container \
     -v /path/to/config:/app/config \
-    --network=jellyfin-network \
     --restart unless-stopped \
     ghcr.io/mueslimak3r/jellyfin-intro-scanner:latest
 ```
@@ -49,7 +49,6 @@ docker run -d \
   -e JELLYFIN_USERNAME=username \
   -e JELLYFIN_PASSWORD='password' \
   -v /path/to/config:/app/config \
-  --network=jellyfin-network \
   --restart unless-stopped \
   ghcr.io/mueslimak3r/jellyfin-intro-skipper:latest
 ```
@@ -61,13 +60,13 @@ version: "3.8"
 services:
   Jellyfin-Intro-Scanner:
     image: ghcr.io/mueslimak3r/jellyfin-intro-scanner:latest
-    depends_on:
-	- Jellyfin
+
     container_name: Jellyfin-Intro-Scanner
     environment:
       - JELLYFIN_URL=http://Jellyfin:port
       - JELLYFIN_USERNAME=username
       - JELLYFIN_PASSWORD='password'
+      - PATH_MAP="/srv/mount1/tv:/data/tv1,/srv/mount2/tv:/data/tv2"
     volumes:
       - /path/to/media/on/host:/path/to/media/on/Jellyfin/container
       - /path/to/config:/app/config
@@ -75,8 +74,7 @@ services:
 
   Jellyfin-Intro-Skipper:
     image: ghcr.io/mueslimak3r/jellyfin-intro-skipper:latest
-    depends_on:
-	- Jellyfin
+
     container_name: Jellyfin-Intro-Skipper
     environment:
       - JELLYFIN_URL=http://Jellyfin:port
