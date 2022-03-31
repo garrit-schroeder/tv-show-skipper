@@ -35,7 +35,6 @@ docker run -d \
     -e JELLYFIN_URL=http://Jellyfin:port \
     -e JELLYFIN_USERNAME=username \
     -e JELLYFIN_PASSWORD='password' \
-    -e PATH_MAP="/srv/mount1/tv:/data/tv1,/srv/mount2/tv:/data/tv2" \
     -v /path/to/media/on/host:/path/to/media/on/Jellyfin/container \
     -v /path/to/config:/app/config \
     --restart unless-stopped \
@@ -65,8 +64,7 @@ services:
     environment:
       - JELLYFIN_URL=http://Jellyfin:port
       - JELLYFIN_USERNAME=username
-      - JELLYFIN_PASSWORD='password'
-      - PATH_MAP="/srv/mount1/tv:/data/tv1,/srv/mount2/tv:/data/tv2"
+      - JELLYFIN_PASSWORD=password
     volumes:
       - /path/to/media/on/host:/path/to/media/on/Jellyfin/container
       - /path/to/config:/app/config
@@ -79,7 +77,7 @@ services:
     environment:
       - JELLYFIN_URL=http://Jellyfin:port
       - JELLYFIN_USERNAME=username
-      - JELLYFIN_PASSWORD='password'
+      - JELLYFIN_PASSWORD=password
     volumes:
       - /path/to/config:/app/config
     restart: unless-stopped
