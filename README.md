@@ -81,7 +81,7 @@ services:
       - JELLYFIN_USERNAME=username
       - JELLYFIN_PASSWORD='password'
     volumes:
-	- /path/to/config:/app/config
+      - /path/to/config:/app/config
     restart: unless-stopped
 ```
 
