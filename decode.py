@@ -212,7 +212,7 @@ def correct_errors(fingerprints, profiles, log_level, log_file=False):
     print_debug(a=['average length in frames [%s] from %s of %s files' % (average, len(filtered_lengths), len(profiles))], log=log_level > 0, log_file=log_file)
     print_timestamp('average length (time)', 0, average, profiles[0]['fps'], log_level, log_file)
 
-    if int(average * profiles[0]['fps']) < min_intro_length_sec:
+    if average == 0 or int(average / profiles[0]['fps']) < min_intro_length_sec:
         for profile in profiles:
             profile['start_frame'] = 0
             profile['end_frame'] = 0
