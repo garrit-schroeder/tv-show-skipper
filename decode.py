@@ -146,7 +146,7 @@ def check_files_exist(file_paths = []):
             return False
     return True
 
-def save_season_fingerprint(fingerprints, profiles, ndx, filtered_lengths):
+def save_season_fingerprint(fingerprints, profiles, ndx, filtered_lengths, shortest_duration):
     size = len(filtered_lengths)
     sum = 0
     for f in filtered_lengths:
@@ -162,6 +162,7 @@ def save_season_fingerprint(fingerprints, profiles, ndx, filtered_lengths):
     season_fingerprint = {}
     season_fingerprint.update(profiles[ndx])
     season_fingerprint['fingerprint'] = fingerprints[ndx]
+    season_fingerprint['reference_duration'] = shortest_duration
     season_fingerprint['average_frames'] = average
     season_fingerprint['average_sample_size'] = len(filtered_lengths)
 
@@ -233,7 +234,7 @@ def correct_errors(fingerprints, profiles, log_level, log_file=False):
             conforming_profiles.append(ndx)
         else:
             print_debug(a=['\nrejected file [%s] with start %s end %s' % (profiles[ndx]['path'], profiles[ndx]['start_frame'], profiles[ndx]['end_frame'])], log_file=log_file)
-            print_timestamp(profiles[ndx]['path'], profiles[ndx]['start_frame'], profiles[ndx]['end_frame'], profiles[ndx]['fps'], log_file)
+            print_timestamp(profiles[ndx]['path'], profiles[ndx]['start_frame'], profiles[ndx]['end_frame'], profiles[ndx]['fps'], log_level, log_file)
             non_conforming_profiles.append(ndx)
 
     print_debug(a=['\nrejected start frame values from %s of %s results\n' % (len(non_conforming_profiles), len(profiles))], log=log_level > 0, log_file=log_file)
@@ -252,7 +253,7 @@ def correct_errors(fingerprints, profiles, log_level, log_file=False):
     print_debug(a=['shortest duration %s from %s' % (shortest_duration, profiles[conforming_profiles[0]]['path'])], log=log_level > 0, log_file=log_file)
     ref_profile_ndx = conforming_profiles[int(floor(len(conforming_profiles) / 2))]
 
-    save_season_fingerprint(fingerprints, profiles, ref_profile_ndx, filtered_lengths)
+    save_season_fingerprint(fingerprints, profiles, ref_profile_ndx, filtered_lengths, shortest_duration)
 
     if len(non_conforming_profiles) < 1:
         print_debug(a=['no profiles were rejected!'], log=log_level > 0, log_file=log_file)
