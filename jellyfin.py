@@ -213,6 +213,7 @@ def process_jellyfin_shows(log_level = 0, log_file = False, save_json=False):
     end = datetime.now()
     print_debug(a=["total runtime: " + str(end - start)], log_file=log_file)
     if not should_stop and sleep_after_finish_sec > 0:
+        print_debug(a=['sleeping for %s seconds' % sleep_after_finish_sec])
         sleep(300)
 
 def main(argv):
