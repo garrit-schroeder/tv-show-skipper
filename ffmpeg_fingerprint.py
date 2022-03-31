@@ -8,7 +8,7 @@ import sys, getopt
 import subprocess
 from pathlib import Path
 from PIL import Image
-from datetime import datetime, timedelta
+from datetime import datetime
 
 config_path = os.environ['CONFIG_DIR'] if 'CONFIG_DIR' in os.environ else './config'
 data_path = os.environ['DATA_DIR'] if 'DATA_DIR' in os.environ else os.path.join(config_path, 'data')

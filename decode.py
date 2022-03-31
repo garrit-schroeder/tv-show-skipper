@@ -1,20 +1,11 @@
-import re
-import os
+import os, re, sys, getopt, shutil, json
 import cv2
-import imagehash
-import shutil
-import numpy
-import json
 import hashlib
-from math import floor
-import sys, getopt
+import pandas
 
-from time import sleep
-from concurrent.futures import ThreadPoolExecutor, process
+from math import floor
 from datetime import datetime, timedelta
 from pathlib import Path
-from PIL import Image
-import pandas
 
 from ffmpeg_fingerprint import get_fingerprint_ffmpeg
 
@@ -218,15 +209,15 @@ def correct_errors(fingerprints, profiles, log_level, log_file=False):
         sum += f
     average = int(sum / size)
 
+    print_debug(a=['average length in frames [%s] from %s of %s files' % (average, len(filtered_lengths), len(profiles))], log=log_level > 0, log_file=log_file)
+    print_timestamp('average length (time)', 0, average, profiles[0]['fps'], log_level, log_file)
+
     if int(average * profiles[0]['fps']) < min_intro_length_sec:
         for profile in profiles:
             profile['start_frame'] = 0
             profile['end_frame'] = 0
         print_debug(a=['failed to correct profiles - average duration is too short'], log=log_level > 0, log_file=log_file)
         return
-
-    print_debug(a=['average length in frames [%s] from %s of %s files' % (average, len(filtered_lengths), len(profiles))], log=log_level > 0, log_file=log_file)
-    print_timestamp('average length (time)', 0, average, profiles[0]['fps'], log_level, log_file)
 
     # build a list of conforming and non conforming profiles (int indexes)
     # loop through profiles and check if their duration is in the filtered list of intro lengths
@@ -378,15 +369,11 @@ def process_directory(file_paths = [], log_level=0, log_file=False, cleanup=True
     # for instance, if a profile is rejected it could be reprocessed against a different profile without risking...
     # ...overwriting the the start/end frame values for the reference profile
     process_pairs_start = datetime.now()
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        futures = []
-        while len(fingerprints) - 1 > counter:
-            futures.append(executor.submit(process_pairs, fingerprints, profiles, counter, counter + 1, BOTH, log_level))
-            counter += 2
-        if (len(fingerprints) % 2) != 0:
-            futures.append(executor.submit(process_pairs, fingerprints, profiles, -2, -1, SECOND, log_level))
-        for future in futures:
-            future.result()
+    while len(fingerprints) - 1 > counter:
+        process_pairs(fingerprints, profiles, counter, counter + 1, BOTH, log_level)
+        counter += 2
+    if len(fingerprints) % 2 != 0:
+        process_pairs(fingerprints, profiles, -2, -1, SECOND, log_level)
     process_pairs_end = datetime.now()
     print_debug(a=["processed fingerprint pairs in: " + str(process_pairs_end - process_pairs_start)], log=log_level > 0, log_file=log_file)
 
