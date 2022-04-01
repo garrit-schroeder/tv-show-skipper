@@ -153,6 +153,7 @@ def check_json_cache(season = None, log_file = False):
 
 def process_jellyfin_shows(log_level = 0, log_file = False, save_json=False):
     start = datetime.now()
+    print_debug(a=["\n\nstarted new session at %s\n" % start], log_file=log_file)
 
     shows = get_jellyfin_shows()
 
