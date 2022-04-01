@@ -194,6 +194,9 @@ def correct_errors(fingerprints, profiles, log_level, log_file=False):
     for profile in profiles:
         if profile['end_frame'] - profile['start_frame'] >= int(profile['fps'] * min_intro_length_sec) and profile['end_frame'] - profile['start_frame'] <= int(profile['fps'] * max_intro_length_sec):
             lengths.append(profile['end_frame'] - profile['start_frame'])
+        else:
+            print_debug(a=['excluding profile from pool of durations due to it being to long or short %s start %s end %s' % (profile['path'], profile['start_frame'], profile['end_frame'])], log=log_level > 0, log_file=log_file)
+            print_timestamp(profile['path'], profile['start_frame'], profile['end_frame'], profile['fps'], log_level, log_file)
     filtered_lengths = reject_outliers(lengths)
 
     if len(filtered_lengths) < 1:
@@ -415,12 +418,12 @@ def main(argv):
     try:
         opts, args = getopt.getopt(argv,"hi:dvcl")
     except getopt.GetoptError:
-        print_debug('decode.py -i <path> -v (verbose - some logging) -d (debug - most logging) -c (cleanup) -s (slow mode) -l (log to file)\n')
+        print_debug(['decode.py -i <path> -v (verbose - some logging) -d (debug - most logging) -c (cleanup) -s (slow mode) -l (log to file)\n'])
         sys.exit(2)
 
     for opt, arg in opts:
         if opt == '-h':
-            print_debug('decode.py -i <path> -v (verbose - some logging) -d (debug - most logging) -c (cleanup) -s (slow mode) -l (log to file)\n')
+            print_debug(['decode.py -i <path> -v (verbose - some logging) -d (debug - most logging) -c (cleanup) -s (slow mode) -l (log to file)\n'])
             sys.exit()
         elif opt == '-i':
             path = arg
@@ -434,7 +437,7 @@ def main(argv):
             cleanup = True
 
     if path == '' or not os.path.isdir(path):
-        print_debug('decode.py -i <path> -v (verbose - some logging) -d (debug - most logging) -c (cleanup) -s (slow mode) -l (log to file)\n')
+        print_debug(['decode.py -i <path> -v (verbose - some logging) -d (debug - most logging) -c (cleanup) -s (slow mode) -l (log to file)\n'])
         sys.exit(2)
 
     common_video_extensions = ['.webm', '.mkv', '.avi', '.mts', '.m2ts', '.ts', '.mov', '.wmv', '.mp4', '.m4v', '.mpg', '.mpeg', '.m2v' ]
@@ -453,7 +456,7 @@ def main(argv):
                 file_paths.append(os.path.join(path, child))
         file_paths.sort()
     else:
-        print_debug('input directory invalid or cannot be accessed')
+        print_debug(['input directory invalid or cannot be accessed'])
 
     result = process_directory(file_paths=file_paths, log_level=log_level, log_file=log, cleanup=cleanup)
     print(result)
