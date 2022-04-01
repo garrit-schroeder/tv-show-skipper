@@ -2,6 +2,7 @@ import os
 import json
 import arrow
 import signal
+import sys, getopt
 
 from time import sleep
 from datetime import datetime, timezone
@@ -12,6 +13,8 @@ from jellyfin_apiclient_python.exceptions import HTTPException
 server_url = os.environ['JELLYFIN_URL'] if 'JELLYFIN_URL' in os.environ else ''
 server_username = os.environ['JELLYFIN_USERNAME'] if 'JELLYFIN_USERNAME' in os.environ else ''
 server_password = os.environ['JELLYFIN_PASSWORD'] if 'JELLYFIN_PASSWORD' in os.environ else ''
+
+g_monitor_all_users = os.environ['MONITOR_ALL_USERS'] if 'MONITOR_ALL_USERS' in os.environ else ''
 
 config_path = os.environ['CONFIG_DIR'] if 'CONFIG_DIR' in os.environ else './config'
 data_path = os.environ['DATA_DIR'] if 'DATA_DIR' in os.environ else os.path.join(config_path, 'data')
@@ -24,7 +27,7 @@ minimum_intro_length = 10 # seconds
 client = None
 should_exit = False
 
-def monitor_sessions():
+def monitor_sessions(monitor_all_users = False):
     if client == None:
         return False
 
@@ -36,7 +39,7 @@ def monitor_sessions():
         return False
 
     for session in sessions:
-        if session['UserId'] != client.auth.jellyfin_user_id():
+        if not monitor_all_users and session['UserId'] != client.auth.jellyfin_user_id():
             continue
         if not 'PlayState' in session or session['PlayState']['CanSeek'] == False:
             continue
@@ -123,7 +126,7 @@ def init_client():
     client = jellyfin_login(server_url, server_username, server_password)
     
 
-def monitor_loop():
+def monitor_loop(monitor_all_users = False):
     global should_exit
 
     if server_url == '' or server_username == '' or server_password == '':
@@ -131,13 +134,40 @@ def monitor_loop():
         return
     
     init_client()
+    print('will monitor %s' % 'all users' if monitor_all_users else 'current user')
     print('listening for jellyfin sessions...')
     while not should_exit:
-        if not monitor_sessions() and not should_exit:
+        if not monitor_sessions(monitor_all_users) and not should_exit:
             init_client()
         sleep(5)
     jellyfin_logout()
 
+def main(argv):
+    all_users = g_monitor_all_users
+
+    try:
+        opts, args = getopt.getopt(argv,"ha")
+    except getopt.GetoptError:
+        print('jellyfin_auto_skip.py -a (all users)\n')
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt == '-h':
+            print('jellyfin_auto_skip.py -a (all users)\n')
+            sys.exit()
+        elif opt == '-a':
+            all_users = True
+    
+    if server_url == '' or server_username == '' or server_password == '':
+        print('you need to export env variables: JELLYFIN_URL, JELLYFIN_USERNAME, JELLYFIN_PASSWORD\n')
+        return
+    
+    match g_monitor_all_users:
+        case "TRUE":
+            all_users = True
+        case "FALSE":
+            all_users = False
+    monitor_loop(all_users)
 
 def receiveSignal(signalNumber, frame):
     global should_exit
@@ -149,4 +179,4 @@ def receiveSignal(signalNumber, frame):
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, receiveSignal)
-    monitor_loop()
+    main(sys.argv[1:])
