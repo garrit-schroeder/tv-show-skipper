@@ -14,7 +14,7 @@ server_url = os.environ['JELLYFIN_URL'] if 'JELLYFIN_URL' in os.environ else ''
 server_username = os.environ['JELLYFIN_USERNAME'] if 'JELLYFIN_USERNAME' in os.environ else ''
 server_password = os.environ['JELLYFIN_PASSWORD'] if 'JELLYFIN_PASSWORD' in os.environ else ''
 
-g_monitor_all_users = os.environ['MONITOR_ALL_USERS'] if 'MONITOR_ALL_USERS' in os.environ else ''
+mon_all_users = os.environ['MONITOR_ALL_USERS'] if 'MONITOR_ALL_USERS' in os.environ else ''
 
 config_path = os.environ['CONFIG_DIR'] if 'CONFIG_DIR' in os.environ else './config'
 data_path = os.environ['DATA_DIR'] if 'DATA_DIR' in os.environ else os.path.join(config_path, 'data')
@@ -162,7 +162,7 @@ def main(argv):
         print('you need to export env variables: JELLYFIN_URL, JELLYFIN_USERNAME, JELLYFIN_PASSWORD\n')
         return
     
-    match g_monitor_all_users:
+    match mon_all_users:
         case "TRUE":
             all_users = True
         case "FALSE":
