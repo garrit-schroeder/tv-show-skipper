@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - master
-      
-  pull_request:
 
 env:
   IMAGE_NAME_Scanner: jellyfin-intro-scanner
@@ -18,10 +16,8 @@ jobs:
     permissions:
       packages: write
       contents: read
-
     steps:
       - uses: actions/checkout@v2
-
       - name: Build image
         run: docker build -f Dockerfile_Jellyfin-Intro-Scanner -t jellyfin-intro-scanner .
 
