@@ -2,7 +2,6 @@ name: Docker Image Build Test
 
 on:   
   pull_request:
-    types: [ open ]
 
 env:
   IMAGE_NAME_Scanner: jellyfin-intro-scanner-test
