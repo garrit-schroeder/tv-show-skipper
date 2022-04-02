@@ -1,0 +1,32 @@
+name: Docker Image Build Test
+
+on:   
+  push:
+    pull_request:
+      types: [ open ]
+
+env:
+  IMAGE_NAME_Scanner: jellyfin-intro-scanner-test
+  IMAGE_NAME_Skipper: jellyfin-intro-skipper-test
+  #VERSION: 0.0.2
+
+jobs:
+  Scanner_Build:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build image
+        run: docker build -f Dockerfile_Jellyfin-Intro-Scanner -t jellyfin-intro-scanner-test .
+          
+  Skipper_Build:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build image
+        run: docker build -f Dockerfile_Jellyfin-Intro-Skipper -t jellyfin-intro-skipper-test .
