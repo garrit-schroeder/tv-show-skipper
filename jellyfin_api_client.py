@@ -10,7 +10,7 @@ https://github.com/jellyfin/jellyfin-mpv-shim
 import sys
 import os
 import json
-import uuid
+import uuid as UUID
 import time
 import logging
 import re
@@ -21,9 +21,9 @@ from jellyfin_apiclient_python.connection_manager import CONNECTION_STATE
 from getpass import getpass
 from typing import Optional
 
-#server_url = os.environ['JELLYFIN_URL']
-#server_username = os.environ['JELLYFIN_USERNAME']
-#server_password = os.environ['JELLYFIN_PASSWORD']
+# server_url = os.environ['JELLYFIN_URL']
+# server_username = os.environ['JELLYFIN_USERNAME']
+# server_password = os.environ['JELLYFIN_PASSWORD']
 
 jellyfin_client_manager = None
 jellyfin_current_client = None
@@ -47,6 +47,7 @@ credentials_location = os.path.join(pathlib.Path(__file__).parent.resolve(), "cr
 
 log = logging.getLogger("clients")
 path_regex = re.compile("^(https?://)?([^/:]+)(:[0-9]+)?(/.*)?$")
+
 
 def expo(max_value: Optional[int] = None):
     n = 0
@@ -93,7 +94,7 @@ class ClientManager(object):
         client = JellyfinClient(allow_multiple_clients=True)
         client.config.data["app.default"] = True
         client.config.app(
-            USER_APP_NAME, CLIENT_VERSION, USER_APP_NAME, str(uuid.uuid4())
+            USER_APP_NAME, CLIENT_VERSION, USER_APP_NAME, str(UUID.uuid4())
         )
         client.config.data["http.user_agent"] = USER_AGENT
         client.config.data["auth.ssl"] = not ignore_ssl_cert
@@ -115,7 +116,7 @@ class ClientManager(object):
             credentials_old = self.credentials
             self.credentials = []
             for server in credentials_old["Servers"]:
-                server["uuid"] = str(uuid.uuid4())
+                server["uuid"] = str(UUID.uuid4())
                 server["username"] = ""
                 self.credentials.append(server)
 
@@ -168,7 +169,7 @@ class ClientManager(object):
             if force_unique:
                 server["uuid"] = server["Id"]
             else:
-                server["uuid"] = str(uuid.uuid4())
+                server["uuid"] = str(UUID.uuid4())
             server["username"] = username
             if force_unique and server["Id"] in self.clients:
                 return client
@@ -270,28 +271,32 @@ class ClientManager(object):
 
         return "Unknown"
 
+
 def initialize_jellyfin_api_client():
     global jellyfin_client_manager
     jellyfin_client_manager = ClientManager()
 
+
 def jellyfin_login(server_url, server_username, server_password):
     global jellyfin_client_manager
     global jellyfin_current_client
-    if jellyfin_client_manager != None:
+    if jellyfin_client_manager is not None:
         jellyfin_logout()
     initialize_jellyfin_api_client()
     jellyfin_current_client = jellyfin_client_manager.login(server_url, server_username, server_password)
     return jellyfin_current_client
 
+
 def jellyfin_logout():
     global jellyfin_client_manager
-    if jellyfin_client_manager != None:
+    if jellyfin_client_manager is not None:
         jellyfin_client_manager.stop()
     jellyfin_client_manager = None
+
 
 def jellyfin_client():
     global jellyfin_current_client
 
-    if jellyfin_current_client == None:
+    if jellyfin_current_client is None:
         jellyfin_login()
     return jellyfin_current_client

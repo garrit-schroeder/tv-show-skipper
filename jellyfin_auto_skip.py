@@ -2,7 +2,8 @@ import os
 import json
 import arrow
 import signal
-import sys, getopt
+import sys
+import getopt
 
 from time import sleep
 from datetime import datetime, timezone
@@ -22,37 +23,38 @@ data_path = os.environ['DATA_DIR'] if 'DATA_DIR' in os.environ else os.path.join
 TICKS_PER_MS = 10000
 
 preroll_seconds = 3
-minimum_intro_length = 10 # seconds
+minimum_intro_length = 10  # seconds
 
 client = None
 should_exit = False
 
-def monitor_sessions(monitor_all_users = False):
-    if client == None:
+
+def monitor_sessions(monitor_all_users=False):
+    if client is None:
         return False
 
     start = datetime.now(timezone.utc)
     try:
         sessions = client.jellyfin.sessions()
     except (HTTPError, HTTPException) as err:
-        print("error communicating with the server")
+        print("error communicating with the server %s" % err)
         return False
 
     for session in sessions:
         if not monitor_all_users and session['UserId'] != client.auth.jellyfin_user_id():
             continue
-        if not 'PlayState' in session or session['PlayState']['CanSeek'] == False:
+        if 'PlayState' not in session or session['PlayState']['CanSeek'] is False:
             continue
-        if not 'Capabilities' in session or session['Capabilities']['SupportsMediaControl'] == False:
+        if 'Capabilities' not in session or session['Capabilities']['SupportsMediaControl'] is False:
             continue
-        if not 'LastPlaybackCheckIn' in session:
+        if 'LastPlaybackCheckIn' not in session:
             continue
-        if not 'NowPlayingItem' in session:
+        if 'NowPlayingItem' not in session:
             continue
 
         sessionId = session['Id']
 
-        #print('user id %s' % session['UserId'])
+        # print('user id %s' % session['UserId'])
         print(session['DeviceName'])
 
         lastPlaybackTime = arrow.get(session['LastPlaybackCheckIn']).to('utc').datetime
@@ -67,7 +69,7 @@ def monitor_sessions(monitor_all_users = False):
             print('not playing or hasn\'t checked in')
             continue
 
-        if not 'SeriesId' in item or not 'SeasonId' in item:
+        if 'SeriesId' not in item or 'SeasonId' not in item:
             print('playing item isn\'t a series')
             continue
 
@@ -86,7 +88,7 @@ def monitor_sessions(monitor_all_users = False):
         else:
             print('couldn\'t find data for item')
             continue
-        
+
         if start_time_ticks == 0 and end_time_ticks == 0:
             print('no useable intro data')
             continue
@@ -116,17 +118,18 @@ def monitor_sessions(monitor_all_users = False):
         sleep(10)
     return True
 
+
 def init_client():
     global client
 
     print('initializing client')
-    if client != None:
+    if client is not None:
         jellyfin_logout()
     sleep(1)
     client = jellyfin_login(server_url, server_username, server_password)
     
 
-def monitor_loop(monitor_all_users = False):
+def monitor_loop(monitor_all_users=False):
     global should_exit
 
     if server_url == '' or server_username == '' or server_password == '':
@@ -142,11 +145,12 @@ def monitor_loop(monitor_all_users = False):
         sleep(5)
     jellyfin_logout()
 
+
 def main(argv):
     all_users = mon_all_users
 
     try:
-        opts, args = getopt.getopt(argv,"ha")
+        opts, args = getopt.getopt(argv, "ha")
     except getopt.GetoptError:
         print('jellyfin_auto_skip.py -a (all users)\n')
         sys.exit(2)
@@ -169,6 +173,7 @@ def main(argv):
             all_users = False
     monitor_loop(all_users)
 
+
 def receiveSignal(signalNumber, frame):
     global should_exit
 
@@ -176,6 +181,7 @@ def receiveSignal(signalNumber, frame):
         print('should exit')
         should_exit = True
     return
+
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, receiveSignal)

@@ -3,9 +3,10 @@ import re
 import cv2
 import imagehash
 import shutil
-
-import sys, getopt
+import sys
+import getopt
 import subprocess
+
 from pathlib import Path
 from PIL import Image
 from datetime import datetime
@@ -15,23 +16,26 @@ data_path = os.environ['DATA_DIR'] if 'DATA_DIR' in os.environ else os.path.join
 
 session_timestamp = datetime.now().strftime("%Y_%m_%d-%I_%M_%S_%p")
 
-def print_debug(a = [], log = True, log_file = False):
+
+def print_debug(a=[], log=True, log_file=False):
     # Here a is the array holding the objects
     # passed as the argument of the function
     output = ' '.join([str(elem) for elem in a])
     if log:
-        print(output, file = sys.stderr)
+        print(output, file=sys.stderr)
     if log_file:
         log_path = os.path.join(config_path, 'logs')
         Path(log_path).mkdir(parents=True, exist_ok=True)
         with open(os.path.join(log_path, 'log_%s.txt' % session_timestamp), "a") as logger:
             logger.write(output + '\n')
 
+
 def replace(s):
     return re.sub('[^A-Za-z0-9]+', '', s)
 
+
 def get_frames(path, frame_nb, log_level, log_file):
-    if path == None or path == '' or frame_nb == 0:
+    if path is None or path == '' or frame_nb == 0:
         return False
     print_debug(a=['running ffmpeg'], log=log_level > 0, log_file=log_file)
     start = datetime.now()
@@ -43,6 +47,7 @@ def get_frames(path, frame_nb, log_level, log_file):
         print_debug(a=["ran ffmpeg in %s" % str(end - start)], log=log_level > 0, log_file=log_file)
         return process.returncode == 0
 
+
 def check_frames_already_exist(path, frame_nb):
     for ndx in range(1, frame_nb + 1):
         filename = os.path.join(data_path, "fingerprints/" + replace(path) + "/frames/frame-%s.jpeg" % str(ndx).rjust(8, "0"))
@@ -50,13 +55,14 @@ def check_frames_already_exist(path, frame_nb):
             return False
     return True
 
-def get_fingerprint_ffmpeg(path, frame_nb, log_level=1, log_file = False, log_timestamp = None):
+
+def get_fingerprint_ffmpeg(path, frame_nb, log_level=1, log_file=False, log_timestamp=None):
     global session_timestamp
 
-    if path == None or path == '' or frame_nb == 0:
+    if path is None or path == '' or frame_nb == 0:
         return ''
 
-    if log_timestamp != None:
+    if log_timestamp is not None:
         session_timestamp = log_timestamp
 
     Path(os.path.join(data_path, "fingerprints/" + replace(path) + "/frames")).mkdir(parents=True, exist_ok=True)
@@ -75,12 +81,13 @@ def get_fingerprint_ffmpeg(path, frame_nb, log_level=1, log_file = False, log_ti
             frame_fingerprint = str(imagehash.dhash(image))
             video_fingerprint += frame_fingerprint
     try:
-        shutil.rmtree(os.path.join(data_path, "fingerprints/" + replace(path)  + "/frames"))
+        shutil.rmtree(os.path.join(data_path, "fingerprints/" + replace(path) + "/frames"))
     except OSError as e:
         print_debug(a=["Error: %s : %s" % (os.path.join(data_path, "fingerprints/" + replace(path) + "/frames"), e.strerror)], log=log_level > 0, log_file=log_file)
     end = datetime.now()
     print_debug(a=["made hash in %s" % str(end - start)], log=log_level > 0, log_file=log_file)
     return video_fingerprint
+
 
 def main(argv):
 
@@ -89,7 +96,7 @@ def main(argv):
     cleanup = False
     slow_mode = False
     try:
-        opts, args = getopt.getopt(argv,"hi:dvc")
+        opts, args = getopt.getopt(argv, "hi:dvc")
     except getopt.GetoptError:
         print_debug(['decode.py -i <path> -v (verbose - some logging) -d (debug - most logging) -c (cleanup) -s (slow mode)\n'])
         sys.exit(2)
@@ -113,7 +120,7 @@ def main(argv):
         print_debug(['decode.py -i <path> -v (verbose - some logging) -d (debug - most logging) -c (cleanup) -s (slow mode)\n'])
         sys.exit(2)
 
-    common_video_extensions = ['.webm', '.mkv', '.avi', '.mts', '.m2ts', '.ts', '.mov', '.wmv', '.mp4', '.m4v', '.mpg', '.mpeg', '.m2v' ]
+    common_video_extensions = ['.webm', '.mkv', '.avi', '.mts', '.m2ts', '.ts', '.mov', '.wmv', '.mp4', '.m4v', '.mpg', '.mpeg', '.m2v']
 
     if os.path.isdir(dir):
         start = datetime.now()
@@ -140,5 +147,6 @@ def main(argv):
         print_debug(['input directory invalid or cannot be accessed'])
         return {}
 
+
 if __name__ == "__main__":
-   main(sys.argv[1:])
+    main(sys.argv[1:])

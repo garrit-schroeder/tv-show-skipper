@@ -1,4 +1,9 @@
-import os, re, sys, getopt, shutil, json
+import os
+import re
+import sys
+import getopt
+import shutil
+import json
 import cv2
 import hashlib
 import pandas
@@ -16,24 +21,25 @@ BOTH = 2
 config_path = os.environ['CONFIG_DIR'] if 'CONFIG_DIR' in os.environ else './config'
 data_path = os.environ['DATA_DIR'] if 'DATA_DIR' in os.environ else os.path.join(config_path, 'data')
 
-preroll_seconds = 0 # adjust the end time to return n seconds prior to the calculated end time
-                    # jellyfin_auto_skip.py also handles pre-roll so adjust it there
-                    # adjusting it here bakes the pre-rolled value into the result
+preroll_seconds = 0     # adjust the end time to return n seconds prior to the calculated end time
+                        # jellyfin_auto_skip.py also handles pre-roll so adjust it there
+                        # adjusting it here bakes the pre-rolled value into the result
 max_fingerprint_mins = 10
 min_intro_length_sec = 10
 max_intro_length_sec = 180
-check_frame = 10  # 1 (slow) to 10 (fast) is fine 
-workers = 4 # number of executors to use
-target_image_height = 180 # scale frames to height of 180px
+check_frame = 10  # 1 (slow) to 10 (fast) is fine
+workers = 4  # number of executors to use
+target_image_height = 180  # scale frames to height of 180px
 
 session_timestamp = datetime.now().strftime("%Y_%m_%d-%I_%M_%S_%p")
 
-def print_debug(a = [], log = True, log_file = False):
+
+def print_debug(a=[], log=True, log_file=False):
     # Here a is the array holding the objects
     # passed as the argument of the function
     output = ' '.join([str(elem) for elem in a])
     if log:
-        print(output, file = sys.stderr)
+        print(output, file=sys.stderr)
     if log_file:
         log_path = os.path.join(config_path, 'logs')
         Path(log_path).mkdir(parents=True, exist_ok=True)
@@ -46,19 +52,23 @@ def dict_by_value(dict, value):
         if age == value:
             return name
 
+
 def write_fingerprint(path, fingerprint):
     path = os.path.join(data_path, "fingerprints/" + replace(path) + "/fingerprint.txt")
     with open(path, "w+") as text_file:
         text_file.write(fingerprint)
 
+
 def replace(s):
     return re.sub('[^A-Za-z0-9]+', '', s)
+
 
 def print_timestamp(name, start_frame, end_frame, fps, log_level, log_file):
     start_time = 0 if start_frame == 0 else round(start_frame / fps)
     end_time = 0 if end_frame == 0 else round(end_frame / fps)
 
     print_debug(a=['[%s] has start %s end %s' % (name, str(timedelta(seconds=start_time)).split('.')[0], str(timedelta(seconds=end_time)).split('.')[0])], log=log_level > 0, log_file=log_file)
+
 
 def get_timestamp_from_frame(profile):
     start_time = 0 if profile['start_frame'] == 0 else round(profile['start_frame'] / profile['fps'])
@@ -68,6 +78,7 @@ def get_timestamp_from_frame(profile):
     profile['end_time_ms'] = end_time * 1000
     profile['start_time'] = str(timedelta(seconds=start_time)).split('.')[0]
     profile['end_time'] = str(timedelta(seconds=end_time)).split('.')[0]
+
 
 def create_video_fingerprint(profile, log_level, log_file):
     video_fingerprint = ''
@@ -79,13 +90,15 @@ def create_video_fingerprint(profile, log_level, log_file):
         raise Exception("error creating fingerprint for video [%s]" % profile['path'])
     return video_fingerprint
 
+
 def get_equal_frames(print1, print2):
     equal_frames = []
     for j in range(0, int(len(print1) / 16 / check_frame)):
         if print1[j * 16 * check_frame:j * 16 * check_frame + 16] == print2[
-                                                                     j * 16 * check_frame:j * 16 * check_frame + 16]:
+                j * 16 * check_frame:j * 16 * check_frame + 16]:
             equal_frames.append(print1[j * 16 * check_frame:j * 16 * check_frame + 16])
     return equal_frames
+
 
 def get_start_end(print1, print2):
     highest_equal_frames = []
@@ -102,6 +115,7 @@ def get_start_end(print1, print2):
     search = re.search(p, "".join(print1))
     search2 = re.search(p, "".join(print2))
     return (int(search.start() / 16), int(search.end() / 16)), (int(search2.start() / 16), int(search2.end() / 16))
+
 
 def get_or_create_fingerprint(file, cleanup, log_level, log_file):
     start = datetime.now()
@@ -129,13 +143,15 @@ def get_or_create_fingerprint(file, cleanup, log_level, log_file):
     print_debug(a=["processed fingerprint in %s for [%s]" % (str(end - start), file)], log=log_level > 0, log_file=log_file)
     return fingerprint, profile
 
-def check_files_exist(file_paths = []):
+
+def check_files_exist(file_paths=[]):
     if not file_paths:
         return False
     for file in file_paths:
         if not os.path.exists(file):
             return False
     return True
+
 
 def save_season_fingerprint(fingerprints, profiles, ndx, filtered_lengths, shortest_duration):
     size = len(filtered_lengths)
@@ -160,7 +176,7 @@ def save_season_fingerprint(fingerprints, profiles, ndx, filtered_lengths, short
     path = os.path.join(data_path, "fingerprints/" + name + ".json")
     Path(os.path.join(data_path, "fingerprints")).mkdir(parents=True, exist_ok=True)
     with open(path, "w+") as json_file:
-        json.dump(season_fingerprint, json_file, indent = 4)
+        json.dump(season_fingerprint, json_file, indent=4)
 
 
 '''
@@ -177,15 +193,18 @@ def reject_outliers(data, m = 1.):
         return output[0]
     return output
 '''
+
+
 def reject_outliers(input_list, iq_range=0.2):
     if not input_list:
         return input_list
 
     sr = pandas.Series(input_list, copy=True)
     pcnt = (1 - iq_range) / 2
-    qlow, median, qhigh = sr.dropna().quantile([pcnt, 0.50, 1-pcnt])
+    qlow, median, qhigh = sr.dropna().quantile([pcnt, 0.50, 1 - pcnt])
     iqr = qhigh - qlow
-    return sr[ (sr - median).abs() <= iqr].values.tolist()
+    return sr[(sr - median).abs() <= iqr].values.tolist()
+
 
 def correct_errors(fingerprints, profiles, log_level, log_file=False):
 
@@ -230,7 +249,7 @@ def correct_errors(fingerprints, profiles, log_level, log_file=False):
         diff_from_avg = abs(profiles[ndx]['end_frame'] - profiles[ndx]['start_frame'] - average)
         print_debug(a=['file [%s] diff from average %s' % (profiles[ndx]['path'], diff_from_avg)], log=log_level > 1, log_file=log_file)
         if profiles[ndx]['end_frame'] - profiles[ndx]['start_frame'] in filtered_lengths or \
-            diff_from_avg < int(15 * profiles[ndx]['fps']):
+                diff_from_avg < int(15 * profiles[ndx]['fps']):
 
             conforming_profiles.append(ndx)
         else:
@@ -279,7 +298,7 @@ def correct_errors(fingerprints, profiles, log_level, log_file=False):
         if guessed_start < 0:
             guessed_start = 0
         guessed_start_diff = abs(profiles[nprofile]['end_frame'] - guessed_start - average)
-        #print(shortest_duration, guessed_start, guessed_start_diff)
+        # print(shortest_duration, guessed_start, guessed_start_diff)
         if profiles[nprofile]['end_frame'] - profiles[nprofile]['start_frame'] in new_filtered_lengths and \
                 diff_from_avg < int(15 * profiles[nprofile]['fps']):
 
@@ -300,7 +319,8 @@ def correct_errors(fingerprints, profiles, log_level, log_file=False):
                 print_timestamp(profiles[nprofile]['path'], profiles[nprofile]['start_frame'], profiles[nprofile]['end_frame'], profiles[nprofile]['fps'], log_level, log_file)
                 profiles[nprofile]['start_frame'] = 0
                 profiles[nprofile]['end_frame'] = 0
-    print_debug(a=['\nrepaired %s/%s non conforming profiles\n' % (repaired, len(non_conforming_profiles))], log=log_level > 0, log_file=log_file) 
+    print_debug(a=['\nrepaired %s/%s non conforming profiles\n' % (repaired, len(non_conforming_profiles))], log=log_level > 0, log_file=log_file)
+
 
 def process_pairs(fingerprints, profiles, ndx_1, ndx_2, mode, log_level):
     try:
@@ -322,14 +342,15 @@ def process_pairs(fingerprints, profiles, ndx_1, ndx_2, mode, log_level):
             if profiles[ndx_2]['end_frame'] < 0:
                 profiles[ndx_2]['end_frame'] = 0
 
-    except:
+    except BaseException as err:
         if log_level > 0:
             print_debug(a=["could not compare fingerprints from files " + profiles[ndx_1]['path'] + " " + profiles[ndx_2]['path']])
 
-def process_directory(file_paths = [], log_level=0, log_file=False, cleanup=True, log_timestamp = None):
+
+def process_directory(file_paths=[], log_level=0, log_file=False, cleanup=True, log_timestamp=None):
     global session_timestamp
 
-    if log_timestamp != None:
+    if log_timestamp is not None:
         session_timestamp = log_timestamp
 
     start = datetime.now()
@@ -354,8 +375,8 @@ def process_directory(file_paths = [], log_level=0, log_file=False, cleanup=True
         except OSError as e:
             print_debug(a=["Error: %s : %s" % ('fingerprints', e.strerror)], log_file=log_file)
 
-    profiles = [] # list of dictionaries containing path, start/end frame & time, fps
-    fingerprints = [] # list of hash values
+    profiles = []  # list of dictionaries containing path, start/end frame & time, fps
+    fingerprints = []  # list of hash values
 
     for file_path in file_paths:
         fingerprint, profile = get_or_create_fingerprint(file_path, cleanup, log_level, log_file)
@@ -399,7 +420,7 @@ def process_directory(file_paths = [], log_level=0, log_file=False, cleanup=True
         print_debug(a=[profile['path'] + " start time: " + profile['start_time'] + " end time: " + profile['end_time']], log=log_level > 1, log_file=log_file)
 
     end = datetime.now()
-    print_debug(a=["ended at", end], log=log_level > 0,log_file=True)
+    print_debug(a=["ended at", end], log=log_level > 0, log_file=True)
     print_debug(a=["run time: " + str(end - start)], log=log_level > 0, log_file=True)
 
     if cleanup and os.path.isdir(os.path.join(data_path, 'fingerprints')):
@@ -409,6 +430,7 @@ def process_directory(file_paths = [], log_level=0, log_file=False, cleanup=True
             print_debug(a=["Error: %s : %s" % ('fingerprints', e.strerror)], log_file=True)
     return profiles
 
+
 def main(argv):
 
     path = ''
@@ -416,7 +438,7 @@ def main(argv):
     cleanup = False
     log = False
     try:
-        opts, args = getopt.getopt(argv,"hi:dvcl")
+        opts, args = getopt.getopt(argv, "hi:dvcl")
     except getopt.GetoptError:
         print_debug(['decode.py -i <path> -v (verbose - some logging) -d (debug - most logging) -c (cleanup) -s (slow mode) -l (log to file)\n'])
         sys.exit(2)
@@ -440,7 +462,7 @@ def main(argv):
         print_debug(['decode.py -i <path> -v (verbose - some logging) -d (debug - most logging) -c (cleanup) -s (slow mode) -l (log to file)\n'])
         sys.exit(2)
 
-    common_video_extensions = ['.webm', '.mkv', '.avi', '.mts', '.m2ts', '.ts', '.mov', '.wmv', '.mp4', '.m4v', '.mpg', '.mpeg', '.m2v' ]
+    common_video_extensions = ['.webm', '.mkv', '.avi', '.mts', '.m2ts', '.ts', '.mov', '.wmv', '.mp4', '.m4v', '.mpg', '.mpeg', '.m2v']
 
     file_paths = []
     if os.path.isdir(path):
@@ -461,5 +483,6 @@ def main(argv):
     result = process_directory(file_paths=file_paths, log_level=log_level, log_file=log, cleanup=cleanup)
     print(result)
 
+
 if __name__ == "__main__":
-   main(sys.argv[1:])
+    main(sys.argv[1:])

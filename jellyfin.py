@@ -1,6 +1,7 @@
 import os
 import re
-import sys, getopt
+import sys
+import getopt
 import jellyfin_queries
 import json
 import signal
@@ -10,7 +11,7 @@ import hashlib
 
 from time import sleep
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime
 from jellyfin_api_client import jellyfin_login, jellyfin_logout
 from decode import process_directory
 
@@ -22,29 +23,32 @@ env_path_map_str = os.environ['PATH_MAP'] if 'PATH_MAP' in os.environ else ''
 config_path = os.environ['CONFIG_DIR'] if 'CONFIG_DIR' in os.environ else './config'
 data_path = os.environ['DATA_DIR'] if 'DATA_DIR' in os.environ else os.path.join(config_path, 'data')
 
-minimum_episode_duration = 15 # minutes
-maximum_episodes_per_season = 30 # meant to skip daily shows like jeopardy
+minimum_episode_duration = 15  # minutes
+maximum_episodes_per_season = 30  # meant to skip daily shows like jeopardy
 
-sleep_after_finish_sec = 300 # sleep for 5 minutes after the script finishes. If it runs automatically this prevents it rapidly looping
+sleep_after_finish_sec = 300  # sleep for 5 minutes after the script finishes. If it runs automatically this prevents it rapidly looping
 
 should_stop = False
 
 session_timestamp = datetime.now().strftime("%Y_%m_%d-%I_%M_%S_%p")
 
-def print_debug(a = [], log = True, log_file = False):
+
+def print_debug(a=[], log=True, log_file=False):
     # Here a is the array holding the objects
     # passed as the argument of the function
     output = ' '.join([str(elem) for elem in a])
     if log:
-        print(output, file = sys.stderr)
+        print(output, file=sys.stderr)
     if log_file:
         log_path = os.path.join(config_path, 'logs')
         Path(log_path).mkdir(parents=True, exist_ok=True)
         with open(os.path.join(log_path, 'log_%s.txt' % session_timestamp), "a") as logger:
             logger.write(output + '\n')
 
+
 def replace(s):
     return re.sub('[^A-Za-z0-9]+', '', s)
+
 
 def get_path_map():
     path_map = []
@@ -70,6 +74,7 @@ def get_path_map():
             path_map.append((map[0], map[1]))
     return path_map
 
+
 def get_jellyfin_shows():
     if server_url == '' or server_username == '' or server_password == '':
         print_debug(a=['missing server info'])
@@ -92,7 +97,8 @@ def get_jellyfin_shows():
 
     return shows
 
-def copy_season_fingerprint(result = [], dir_path = "", debug = False, log_file = False):
+
+def copy_season_fingerprint(result=[], dir_path="", debug=False, log_file=False):
     if not result or dir_path == "":
         return
 
@@ -110,8 +116,9 @@ def copy_season_fingerprint(result = [], dir_path = "", debug = False, log_file 
             print_debug(a=['saving season fingerprint to jellyfin_cache'], log_file=log_file)
         shutil.copyfile(src_path, dst_path)
 
-def save_season(season = None, result = None, save_json = False, debug = False, log_file = False):
-    if not result or result == None or season == None:
+
+def save_season(season=None, result=None, save_json=False, debug=False, log_file=False):
+    if not result or season is None:
         return
     path = os.path.join(data_path, "jellyfin_cache/" + str(season['SeriesId']) + "/" + str(season['SeasonId']))
     if save_json:
@@ -130,11 +137,12 @@ def save_season(season = None, result = None, save_json = False, debug = False, 
             if save_json:
                 Path(path).mkdir(parents=True, exist_ok=True)
                 with open(os.path.join(path, str(season['Episodes'][ndx]['EpisodeId']) + '.json'), "w+") as json_file:
-                    json.dump(season['Episodes'][ndx], json_file, indent = 4)
+                    json.dump(season['Episodes'][ndx], json_file, indent=4)
         elif debug:
             print_debug(a=['index mismatch'], log_file=log_file)
 
-def check_json_cache(season = None, log_file = False):
+
+def check_json_cache(season=None, log_file=False):
     path = os.path.join(data_path, "jellyfin_cache/" + str(season['SeriesId']) + "/" + str(season['SeasonId']))
 
     file_paths = []
@@ -151,7 +159,8 @@ def check_json_cache(season = None, log_file = False):
         file_paths.append(episode['Path'])
     return file_paths
 
-def process_jellyfin_shows(log_level = 0, log_file = False, save_json=False):
+
+def process_jellyfin_shows(log_level=0, log_file=False, save_json=False):
     start = datetime.now()
     print_debug(a=["\n\nstarted new session at %s\n" % start], log_file=log_file)
 
@@ -217,13 +226,14 @@ def process_jellyfin_shows(log_level = 0, log_file = False, save_json=False):
         print_debug(a=['sleeping for %s seconds' % sleep_after_finish_sec])
         sleep(300)
 
+
 def main(argv):
     log_level = 0
     save_json = False
     log = False
 
     try:
-        opts, args = getopt.getopt(argv,"hdvjl")
+        opts, args = getopt.getopt(argv, "hdvjl")
     except getopt.GetoptError:
         print_debug(['jellyfin.py -d (debug) -j (save json) -l (log to file)'])
         print_debug(['saving to json is currently the only way to skip previously processed files in subsequent runs\n'])
@@ -249,6 +259,7 @@ def main(argv):
 
     process_jellyfin_shows(log_level, log, save_json)
 
+
 def receiveSignal(signalNumber, frame):
     global should_stop
     print_debug(['Received signal:', signalNumber])
@@ -256,6 +267,7 @@ def receiveSignal(signalNumber, frame):
         print_debug(['will stop'])
         should_stop = True
     return
+
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, receiveSignal)
