@@ -25,6 +25,8 @@ def get_shows(client=None, path_map=[]):
             'includeItemTypes': (
                 "Series"
             ),
+            'SortBy': 'DateCreated,SortName',
+            'SortOrder': 'Descending',
             'enableImages': False,
             'enableUserData': False,
             'Fields': (
