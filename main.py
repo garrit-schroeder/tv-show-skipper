@@ -62,11 +62,11 @@ def get_equal_frames(print1, print2, start1, start2):
 
 def get_start_end(print1, print2):
     highest_equal_frames = []
-    for k in range(0, int(len(print1) / 16 / check_frame)):
-        equal_frames = get_equal_frames(print1[-k * 16 * check_frame:], print2, (len(print1) / 16) - (k * check_frame), 0)
+    for k in range(0, int(len(print1) / 16)):
+        equal_frames = get_equal_frames(print1[-k * 16:], print2, (len(print1) / 16) - k, 0)
         if len(equal_frames) > len(highest_equal_frames):
             highest_equal_frames = equal_frames
-        equal_frames = get_equal_frames(print1, print2[k * 16 * check_frame:], 0, k * check_frame)
+        equal_frames = get_equal_frames(print1, print2[k * 16:], 0, k * check_frame)
         if len(equal_frames) > len(highest_equal_frames):
             highest_equal_frames = equal_frames
 
