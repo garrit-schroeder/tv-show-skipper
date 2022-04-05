@@ -5,7 +5,7 @@ largest common subset of frames with a bit of fuzziness.
 
 ## NOTICE
 
-`path_map.txt` and env `PATH_MAP` now uses `::` to delimit path maps instead of `:`. This allows handling Windows paths
+`path_map.txt` and env `PATH_MAP` now use `::` to delimit path maps instead of `:`. This allows handling Windows paths
 
 ## Running
 
