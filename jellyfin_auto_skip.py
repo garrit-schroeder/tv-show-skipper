@@ -167,11 +167,11 @@ def main(argv):
         print('you need to export env variables: JELLYFIN_URL, JELLYFIN_USERNAME, JELLYFIN_PASSWORD\n')
         return
     
-    match mon_all_users:
-        case "TRUE":
-            all_users = True
-        case "FALSE":
-            all_users = False
+    if mon_all_users == 'TRUE':
+        all_users = True
+    elif mon_all_users == 'FALSE':
+        all_users = False
+
     monitor_loop(all_users)
 
 
