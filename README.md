@@ -9,10 +9,11 @@ largest common subset of frames with a bit of fuzziness.
 
 ## Running
 
-1. Install python dependencies from `requirements.txt`
+1. Install python 3.10.x or newer
 2. Install ffmpeg
-3. To use with Jellyfin, run `jellyfin.py`. This will query Jellyfin for a list of series and their paths.
-4. To process a directory manually, run `decode.py` and pass the parameter `-i` with the path to a directory containing at least **two** episodes of the same season
+3. Install python dependencies from `requirements.txt`
+4. To use with Jellyfin, run `jellyfin.py`. This will query Jellyfin for a list of series and their paths.
+5. To process a directory manually, run `decode.py` and pass the parameter `-i` with the path to a directory containing at least **two** episodes of the same season
 
 By default there is little/no output to stdout or stderr until the script has finished processing some media. Run `jellyfin.py` or `decode.py` with the `-d` parameter for verbose output
 
