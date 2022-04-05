@@ -211,7 +211,7 @@ def correct_errors(fingerprints, profiles, log_level, log_file=False):
     # build a list of intro lengths with outliers rejected
     lengths = []
     for profile in profiles:
-        if profile['end_frame'] - profile['start_frame'] >= int(profile['fps'] * min_intro_length_sec) and profile['end_frame'] - profile['start_frame'] <= int(profile['fps'] * max_intro_length_sec):
+        if profile['end_frame'] - profile['start_frame'] <= int(profile['fps'] * max_intro_length_sec):
             lengths.append(profile['end_frame'] - profile['start_frame'])
         else:
             print_debug(a=['excluding profile from pool of durations due to it being to long or short %s start %s end %s' % (profile['path'], profile['start_frame'], profile['end_frame'])], log=log_level > 0, log_file=log_file)
