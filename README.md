@@ -17,9 +17,13 @@ When using `jellyfin.py`, the results can be saved to `json` using the `-j` para
 ## Examples
 scan your jellyfin library, store the result in json, debug logging enabled, logging debug output to file enabled
 
+`export JELLYFIN_URL="https://myurl" && export JELLYFIN_USERNAME="myusername" && export JELLYFIN_PASSWORD='mypassword'`
+
 `jellyfin.py -j -d -l`
 
 monitor your jellyfin sessions and automatically skip intros using the stored json data
+
+`export JELLYFIN_URL="https://myurl" && export JELLYFIN_USERNAME="myusername" && export JELLYFIN_PASSWORD='mypassword'`
 
 `jellyfin_auto_skip.py`
 
