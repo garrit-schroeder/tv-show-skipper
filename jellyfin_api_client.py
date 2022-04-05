@@ -1,4 +1,3 @@
-
 '''
 Big thanks to the jellyfin/jellyfin-mpv-shim devs for most of the code in this file!
 Adapted from:
@@ -8,13 +7,12 @@ https://github.com/jellyfin/jellyfin-mpv-shim
 '''
 
 import sys
-import os
 import json
 import uuid as UUID
 import time
 import logging
 import re
-import pathlib
+from pathlib import Path
 
 from jellyfin_apiclient_python import JellyfinClient
 from jellyfin_apiclient_python.connection_manager import CONNECTION_STATE
@@ -43,7 +41,7 @@ connect_retry_mins = 0
 
 ignore_ssl_cert = False
 
-credentials_location = os.path.join(pathlib.Path(__file__).parent.resolve(), "cred.json")
+credentials_location = Path(Path(__file__).parent.resolve() / 'cred.json')
 
 log = logging.getLogger("clients")
 path_regex = re.compile("^(https?://)?([^/:]+)(:[0-9]+)?(/.*)?$")
@@ -108,8 +106,8 @@ class ClientManager(object):
         return is_logged_in
 
     def try_connect(self):
-        if os.path.exists(credentials_location):
-            with open(credentials_location) as cf:
+        if credentials_location.exists():
+            with credentials_location.open('r') as cf:
                 self.credentials = json.load(cf)
 
         if "Servers" in self.credentials:
@@ -136,8 +134,9 @@ class ClientManager(object):
         return is_logged_in
 
     def save_credentials(self):
-        with open(credentials_location, "w") as cf:
-            json.dump(self.credentials, cf)
+        if credentials_location.exists():
+            with credentials_location.open('w') as cf:
+                json.dump(self.credentials, cf)
 
     def login(
         self, server: str, username: str, password: str, force_unique: bool = False
