@@ -1,7 +1,6 @@
 # Project Overview
 
-This project tries to detect intros of tv series by comparing two episodes of the same series and trying to find the
-largest common subset of frames with a bit of fuzziness.
+This project tries to detect intros of tv series by comparing pairs of episodes to find the largest common subset of frames.
 
 ### How the script compares videos
 Each frame from the first quarter of each episode is extracted and a hash (https://pypi.org/project/ImageHash/) is made on the frame. Each frame hash is added to a long video hash.<br>
