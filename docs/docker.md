@@ -1,6 +1,6 @@
 ## Running with Docker
 
-  ### Docker Compose - Scanner & Skipper 
+  #### Docker Compose - Scanner & Skipper 
 ```
 ---
 version: "3.8"
@@ -32,7 +32,7 @@ services:
     restart: unless-stopped
 ```
 
-  ### Scanner - Docker Run
+  #### Scanner - Docker Run
 ```
 docker run -d \
     --name=Jellyfin-Intro-Scanner \
@@ -44,7 +44,7 @@ docker run -d \
     --restart unless-stopped \
     ghcr.io/mueslimak3r/jellyfin-intro-scanner:latest
 ```
-  ### Skipper - Docker Run
+  #### Skipper - Docker Run
 ```
 docker run -d \
   --name=Jellyfin-Intro-Skipper \
