@@ -2,3 +2,7 @@ remote_theme: just-the-docs/just-the-docs
 
 # Color scheme supports "light" (default) and "dark"
 color_scheme: dark
+markdown: GFM
+
+name: TV Intro Detection
+description: This project tries to detect intros of tv series by comparing pairs of episodes to find the largest common subset of frames.
