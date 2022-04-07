@@ -1,1 +1,4 @@
-theme: jekyll-theme-cayman
+theme: just-the-docs/just-the-docs
+
+# Color scheme supports "light" (default) and "dark"
+color_scheme: dark
