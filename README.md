@@ -3,6 +3,7 @@
 This project tries to detect intros of tv series by comparing pairs of episodes to find the largest common subset of frames.
 
 For setup details you can find the documentation here:
+
 https://mueslimak3r.github.io/tv-intro-detection/
 
 ### How the script compares videos
