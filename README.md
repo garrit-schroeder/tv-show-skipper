@@ -6,6 +6,9 @@ For setup details you can find the documentation here:
 
 https://mueslimak3r.github.io/tv-intro-detection/
 
+### Notice
+`path_map.txt` and env `PATH_MAP` now use `::` to delimit path maps instead of `:`. This allows handling Windows paths
+
 ### How the script compares videos
 Each frame from the first quarter of each episode is extracted and a hash (https://pypi.org/project/ImageHash/) is made on the frame. Each frame hash is added to a long video hash.<br>
 In pairs the longest identical string is searched from the two video hashes.<br>
