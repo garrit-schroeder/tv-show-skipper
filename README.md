@@ -9,7 +9,7 @@ largest common subset of frames with a bit of fuzziness.
 
 ## Running
 
-1. Install python 3.10.x or newer
+1. Install python3 (tested with 3.8.9+)
 2. Install ffmpeg
 3. Install python dependencies from `requirements.txt`
 4. To use with Jellyfin, run `jellyfin.py`. This will query Jellyfin for a list of series and their paths.
