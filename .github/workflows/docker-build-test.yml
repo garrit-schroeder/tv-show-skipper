@@ -2,6 +2,9 @@ name: Docker Image Build Test
 
 on:   
   pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
 
 env:
   IMAGE_NAME_Scanner: jellyfin-intro-scanner-test
