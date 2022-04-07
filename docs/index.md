@@ -49,5 +49,6 @@ make the script aware of your host:container path mapping by editing `path_map.t
 # or
 # Windows client, Jellyfin on linux
 #
-# or X:\some\path\TV::/jellyfin/container/tv/path
+# or
+# X:\some\path\TV::/jellyfin/container/tv/path
 ```
