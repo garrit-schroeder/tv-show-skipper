@@ -13,4 +13,5 @@
 # or
 # Windows client, Jellyfin on linux
 #
-# or X:\some\path\TV::/jellyfin/container/tv/path
+# or
+# X:\some\path\TV::/jellyfin/container/tv/path
