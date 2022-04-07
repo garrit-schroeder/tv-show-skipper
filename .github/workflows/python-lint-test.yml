@@ -2,6 +2,9 @@ name: Python Lint Test
 
 on:
   push:
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
 
 jobs:
   Python_Lint_Test:
