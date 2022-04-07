@@ -1,6 +1,7 @@
-## Running with Docker
+# Running with Docker
 
-  #### Docker Compose - Scanner & Skipper 
+### Docker Compose - Scanner & Skipper 
+
 ```
 ---
 version: "3.8"
@@ -32,7 +33,7 @@ services:
     restart: unless-stopped
 ```
 
-  #### Scanner - Docker Run
+### Docker Run - Scanner
 ```
 docker run -d \
     --name=Jellyfin-Intro-Scanner \
@@ -44,7 +45,8 @@ docker run -d \
     --restart unless-stopped \
     ghcr.io/mueslimak3r/jellyfin-intro-scanner:latest
 ```
-  #### Skipper - Docker Run
+
+### Docker Run - Skipper
 ```
 docker run -d \
   --name=Jellyfin-Intro-Skipper \
@@ -56,6 +58,7 @@ docker run -d \
   ghcr.io/mueslimak3r/jellyfin-intro-skipper:latest
 ```
 
+### Parameters - used by both scanner and skipper
 || Parameter  | Function |
 | ---                                        | ---                                        | ---       |
 | Required | ```-e JELLYFIN_URL=http://Jellyfin:port``` | Jellyfin URL         |
