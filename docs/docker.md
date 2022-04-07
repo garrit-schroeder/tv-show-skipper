@@ -1,4 +1,4 @@
-## Running in Docker
+## Running with Docker
 
   ### Docker Compose - Scanner & Skipper 
 ```
