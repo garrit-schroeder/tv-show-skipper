@@ -35,8 +35,19 @@ make the script aware of your host:container path mapping by editing `path_map.t
 
 ```
 # use this file if you run jellyfin in a container
-# example:
-# /host/system/tv/path:/jellyfin/container/tv/path
-
-/srv/my-mnt-title/media/tv:/data/tv
+# examples:
+#
+# linux client, Jellyfin on linux
+#
+# /host/system/tv/path::/jellyfin/container/tv/path
+#
+# or
+# Windows client, Jellyfin on Windows
+#
+# X:\some\path\TV::Y:\some\path\TV
+#
+# or
+# Windows client, Jellyfin on linux
+#
+# or X:\some\path\TV::/jellyfin/container/tv/path
 ```
