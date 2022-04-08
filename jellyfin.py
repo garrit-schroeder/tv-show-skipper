@@ -81,12 +81,26 @@ def get_jellyfin_shows():
 
     client = jellyfin_login(server_url, server_username, server_password)
     shows = jellyfin_queries.get_shows(client, path_map)
+    if not shows:
+        print_debug(a=['Error - got 0 shows from jellyfin'])
+        return []
+    print_debug(a=['found %s shows' % len(shows)])
+
+    season_count = 0
+    episode_count = 0
     for show in shows:
         seasons = jellyfin_queries.get_seasons(client, path_map, show)
+        if seasons:
+            season_count += len(seasons)
         for season in seasons:
             season['Episodes'] = jellyfin_queries.get_episodes(client, path_map, season)
+        if season['Episodes']:
+            episode_count += len(season['Episodes'])
         show['Seasons'] = seasons
     jellyfin_logout()
+
+    print_debug(a=['found %s seasons' % season_count])
+    print_debug(a=['found %s episodes\n' % episode_count])
 
     return shows
 
@@ -194,6 +208,8 @@ def process_jellyfin_shows(log_level=0, log_file=False, save_json=False):
                     save_season(season, result, save_json, log_level > 0, log_file)
                 else:
                     print_debug(a=['no results - the decoder may not have access to the specified media files'], log_file=log_file)
+            else:
+                print_debug(a=['all files were excluded - they either can\'t be found or were previously processed'], log_file=log_file)
             if (data_path / 'fingerprints').is_dir():
                 try:
                     shutil.rmtree(data_path / 'fingerprints')
