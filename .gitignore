@@ -4,6 +4,7 @@ __pycache__/
 *.json
 *.txt
 *.DS_STORE
+.vscode
 cred.json
 venv
 config/data
