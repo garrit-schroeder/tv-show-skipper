@@ -52,30 +52,35 @@ def create_video_fingerprint(path):
     return video_fingerprint
 
 
-def get_equal_frames(print1, print2):
+def get_equal_frames(print1, print2, start1, start2):
     equal_frames = []
+
     for j in range(0, int(len(print1) / 16 / check_frame)):
         if print1[j * 16 * check_frame:j * 16 * check_frame + 16] == print2[
-                                                                     j * 16 * check_frame:j * 16 * check_frame + 16]:
-            equal_frames.append(print1[j * 16 * check_frame:j * 16 * check_frame + 16])
+                j * 16 * check_frame:j * 16 * check_frame + 16]:
+            equal_frames.append(((int(start1 + (j * check_frame)), int(start2 + (j * check_frame))), print1[j * 16 * check_frame:j * 16 * check_frame + 16]))
     return equal_frames
 
 
 def get_start_end(print1, print2):
+    if print1 == '' or print2 == '':
+        return (0, 0), (0, 0)
+    
+    search_range = min(len(print1), len(print2))
+
     highest_equal_frames = []
-    for k in range(0, int(len(print1) / 16)):
-        equal_frames = get_equal_frames(print1[-k * 16:], print2)
+    for k in range(1, int(search_range / 16)):
+        equal_frames = get_equal_frames(print1[-k * 16:], print2, int(search_range / 16) - k, 0)
         if len(equal_frames) > len(highest_equal_frames):
             highest_equal_frames = equal_frames
-        equal_frames = get_equal_frames(print1, print2[k * 16:])
+        equal_frames = get_equal_frames(print1, print2[k * 16:], 0, k)
         if len(equal_frames) > len(highest_equal_frames):
             highest_equal_frames = equal_frames
-    regex_string = ".*?".join(highest_equal_frames) + "){1,}"
-    regex_string = regex_string[:-21] + '(' + regex_string[-21:]
-    p = re.compile(regex_string)
-    search = re.search(p, "".join(print1))
-    search2 = re.search(p, "".join(print2))
-    return (int(search.start() / 16), int(search.end() / 16)), (int(search2.start() / 16), int(search2.end() / 16))
+
+    if highest_equal_frames:
+        return (highest_equal_frames[0][0][0], highest_equal_frames[-1][0][0]), (highest_equal_frames[0][0][1], highest_equal_frames[-1][0][1])
+    else:
+        return (0, 0), (0, 0)
 
 
 def get_or_create_fingerprint(file):
