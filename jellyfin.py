@@ -79,7 +79,7 @@ def get_jellyfin_shows():
 
     path_map = get_path_map()
 
-    client = jellyfin_login(server_url, server_username, server_password)
+    client = jellyfin_login(server_url, server_username, server_password, "TV Intro Detection Scanner")
     shows = jellyfin_queries.get_shows(client, path_map)
     if not shows:
         print_debug(a=['Error - got 0 shows from jellyfin'])
@@ -147,6 +147,7 @@ def save_season(season=None, result=None, save_json=False, debug=False, log_file
                     json.dump(season['Episodes'][ndx], json_file, indent=4)
         elif debug:
             print_debug(a=['index mismatch'], log_file=log_file)
+
 
 
 def check_json_cache(season=None, log_file=False):

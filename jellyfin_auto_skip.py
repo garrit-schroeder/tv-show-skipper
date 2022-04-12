@@ -127,7 +127,7 @@ def init_client():
     if client is not None:
         jellyfin_logout()
     sleep(1)
-    client = jellyfin_login(server_url, server_username, server_password)
+    client = jellyfin_login(server_url, server_username, server_password, "TV Intro Auto Skipper")
     
 
 def monitor_loop(monitor_all_users=False):

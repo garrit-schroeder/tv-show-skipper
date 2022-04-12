@@ -12,8 +12,9 @@ import uuid as UUID
 import time
 import logging
 import re
-from pathlib import Path
+import os
 
+from pathlib import Path
 from jellyfin_apiclient_python import JellyfinClient
 from jellyfin_apiclient_python.connection_manager import CONNECTION_STATE
 from getpass import getpass
@@ -26,11 +27,11 @@ from typing import Optional
 jellyfin_client_manager = None
 jellyfin_current_client = None
 
+global_app_name = "tv-intro-detection"
+global_user_app_name = "TV Intro Detection"
 
-APP_NAME = "tv-intro-detection"
-USER_APP_NAME = "TV Intro Detection"
 CLIENT_VERSION = "0.0.1"
-USER_AGENT = "tv-intro-detection/%s" % CLIENT_VERSION
+USER_AGENT = "%s/%s" % (global_user_app_name, CLIENT_VERSION)
 CAPABILITIES = {
     "PlayableMediaTypes": "",
     "SupportsMediaControl": False,
@@ -40,8 +41,9 @@ CAPABILITIES = {
 connect_retry_mins = 0
 
 ignore_ssl_cert = False
+config_path = Path(os.environ['CONFIG_DIR']) if 'CONFIG_DIR' in os.environ else Path(Path.cwd() / 'config')
 
-credentials_location = Path(Path(__file__).parent.resolve() / 'cred.json')
+credentials_location = Path(config_path / (global_app_name + '-cred.json'))
 
 log = logging.getLogger("clients")
 path_regex = re.compile("^(https?://)?([^/:]+)(:[0-9]+)?(/.*)?$")
@@ -89,10 +91,17 @@ class ClientManager(object):
 
     @staticmethod
     def client_factory():
+        uuid = str(UUID.uuid4())
+        if Path(config_path / (global_app_name + '-uuid.txt')).exists():
+            with Path(config_path / (global_app_name + '-uuid.txt')).open('r') as uuid_file:
+                uuid = uuid_file.read()
+        else:
+            with Path(config_path / (global_app_name + '-uuid.txt')).open('w+') as uuid_file:
+                uuid_file.write(uuid)
         client = JellyfinClient(allow_multiple_clients=True)
         client.config.data["app.default"] = True
         client.config.app(
-            USER_APP_NAME, CLIENT_VERSION, USER_APP_NAME, str(UUID.uuid4())
+            global_user_app_name, CLIENT_VERSION, global_user_app_name, uuid
         )
         client.config.data["http.user_agent"] = USER_AGENT
         client.config.data["auth.ssl"] = not ignore_ssl_cert
@@ -276,9 +285,16 @@ def initialize_jellyfin_api_client():
     jellyfin_client_manager = ClientManager()
 
 
-def jellyfin_login(server_url, server_username, server_password):
+def jellyfin_login(server_url, server_username, server_password, app_name=None):
     global jellyfin_client_manager
     global jellyfin_current_client
+    global global_app_name
+    global global_user_app_name
+
+    if app_name is not None:
+        global_user_app_name = app_name
+        global_app_name = re.sub('[^0-9a-zA-Z]', '-', app_name)
+
     if jellyfin_client_manager is not None:
         jellyfin_logout()
     initialize_jellyfin_api_client()
