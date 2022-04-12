@@ -149,7 +149,6 @@ def save_season(season=None, result=None, save_json=False, debug=False, log_file
             print_debug(a=['index mismatch'], log_file=log_file)
 
 
-
 def check_json_cache(season=None, log_file=False):
     path = data_path / 'jellyfin_cache' / str(season['SeriesId']) / str(season['SeasonId'])
 
