@@ -21,6 +21,10 @@ scan your jellyfin library, store the result in json, debug logging enabled, log
 
 `jellyfin.py -j -d -l`
 
+or in reverse order
+
+`jellyfin.py -j -d -l --reverse`
+
 monitor your jellyfin sessions and automatically skip intros using the stored json data
 
 `export JELLYFIN_URL="https://myurl" && export JELLYFIN_USERNAME="myusername" && export JELLYFIN_PASSWORD='mypassword'`

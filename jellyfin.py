@@ -18,6 +18,7 @@ server_url = os.environ['JELLYFIN_URL'] if 'JELLYFIN_URL' in os.environ else ''
 server_username = os.environ['JELLYFIN_USERNAME'] if 'JELLYFIN_USERNAME' in os.environ else ''
 server_password = os.environ['JELLYFIN_PASSWORD'] if 'JELLYFIN_PASSWORD' in os.environ else ''
 env_path_map_str = os.environ['PATH_MAP'] if 'PATH_MAP' in os.environ else ''
+env_reverse_sort_str = os.environ['REVERSE_SORT'] if 'REVERSE_SORT' in os.environ else ''
 
 config_path = Path(os.environ['CONFIG_DIR']) if 'CONFIG_DIR' in os.environ else Path(Path.cwd() / 'config')
 data_path = Path(os.environ['DATA_DIR']) if 'DATA_DIR' in os.environ else Path(config_path / 'data')
@@ -72,7 +73,7 @@ def get_path_map():
     return path_map
 
 
-def get_jellyfin_shows():
+def get_jellyfin_shows(reverse_sort=False):
     if server_url == '' or server_username == '' or server_password == '':
         print_debug(a=['missing server info'])
         return
@@ -80,7 +81,7 @@ def get_jellyfin_shows():
     path_map = get_path_map()
 
     client = jellyfin_login(server_url, server_username, server_password, "TV Intro Detection Scanner")
-    shows = jellyfin_queries.get_shows(client, path_map)
+    shows = jellyfin_queries.get_shows(client, path_map, reverse_sort)
     if not shows:
         print_debug(a=['Error - got 0 shows from jellyfin'])
         return []
@@ -167,11 +168,13 @@ def check_json_cache(season=None, log_file=False):
     return file_paths
 
 
-def process_jellyfin_shows(log_level=0, log_file=False, save_json=False):
+def process_jellyfin_shows(log_level=0, log_file=False, save_json=False, reverse_sort=False):
     start = datetime.now()
     print_debug(a=["\n\nstarted new session at %s\n" % start], log_file=log_file)
+    if reverse_sort:
+        print_debug(['will process shows in reverse order'], log_file=log_file)
 
-    shows = get_jellyfin_shows()
+    shows = get_jellyfin_shows(reverse_sort)
     
     if (data_path / 'fingerprints').is_dir():
         try:
@@ -233,9 +236,10 @@ def main(argv):
     log_level = 0
     save_json = False
     log = False
+    reverse_sort = False
 
     try:
-        opts, args = getopt.getopt(argv, "hdvjl")
+        opts, args = getopt.getopt(argv, "hdvjlr", ["reverse"])
     except getopt.GetoptError:
         print_debug(['jellyfin.py -d (debug) -j (save json) -l (log to file)'])
         print_debug(['saving to json is currently the only way to skip previously processed files in subsequent runs\n'])
@@ -254,12 +258,18 @@ def main(argv):
             save_json = True
         elif opt == '-l':
             log = True
+        elif opt in ("-r", "--reverse"):
+            reverse_sort = True
     
     if server_url == '' or server_username == '' or server_password == '':
         print_debug(['you need to export env variables: JELLYFIN_URL, JELLYFIN_USERNAME, JELLYFIN_PASSWORD\n'])
         return
 
-    process_jellyfin_shows(log_level, log, save_json)
+    if env_reverse_sort_str == 'TRUE':
+        reverse_sort = True
+    elif env_reverse_sort_str == 'FALSE':
+        reverse_sort = False
+    process_jellyfin_shows(log_level, log, save_json, reverse_sort)
 
 
 if __name__ == "__main__":

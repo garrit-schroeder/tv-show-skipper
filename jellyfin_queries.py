@@ -17,7 +17,7 @@ def map_path(path, path_map):
     return new_path
 
 
-def get_shows(client=None, path_map=[]):
+def get_shows(client=None, path_map=[], reverse_sort=False):
     if client is None:
         return []
 
@@ -30,7 +30,7 @@ def get_shows(client=None, path_map=[]):
                 "Series"
             ),
             'SortBy': 'DateCreated,SortName',
-            'SortOrder': 'Descending',
+            'SortOrder': 'Ascending' if reverse_sort else 'Descending',
             'enableImages': False,
             'enableUserData': False,
             'Fields': (
