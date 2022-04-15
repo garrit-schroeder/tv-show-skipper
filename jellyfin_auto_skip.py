@@ -63,8 +63,8 @@ def monitor_sessions(monitor_all_users=False):
 
         item = session['NowPlayingItem']
         if not session['PlayState']['IsPaused'] and timeDiff.seconds < 5 and 'Id' in item:
-            if 'SeriesName' in item and 'SeasonName' in item and 'ParentIndexNumber' in item and 'Name' in item:
-                print('currently playing %s - %s - Episode %s [%s]' % (item['SeriesName'], item['SeasonName'], item['ParentIndexNumber'], item['Name']))
+            if 'SeriesName' in item and 'SeasonName' in item and 'Name' in item:
+                print('currently playing %s - %s - Episode [%s]' % (item['SeriesName'], item['SeasonName'], item['Name']))
             print('item id %s' % item['Id'])
         else:
             print('not playing or hasn\'t checked in')
@@ -87,7 +87,7 @@ def monitor_sessions(monitor_all_users=False):
                     start_time_ticks = int(dict['start_time_ms']) * TICKS_PER_MS
                     end_time_ticks = int(dict['end_time_ms']) * TICKS_PER_MS
         else:
-            print('couldn\'t find data for item')
+            print('couldn\'t find data for item at [%s]' % str(file_path))
             continue
 
         if start_time_ticks == 0 and end_time_ticks == 0:
