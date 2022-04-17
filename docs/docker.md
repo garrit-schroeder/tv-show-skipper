@@ -70,3 +70,4 @@ docker run -d \
 | Optional | ```-e PATH_MAP="/srv/mount1/tv::/data/tv1,/srv/mount2/tv::/data/tv2"```      |  Specify host:container path mapping. Mappings specified here are added to those specified in ```path_map.txt```          |
 | Optional | ```-e CONFIG_DIR=/config```      |  Use a different directory to store config files. The directory specified should be reflected in the ```/app/config``` path mapping.          |
 | Optional | ```-e DATA_DIR=/config/data```      | Use a different directory to store cached data. Modifying this will likely require a new path mapping such as ```-v /path/to/data:/data```         |
+| Optional | ```-e LOG_LEVEL=INFO/VERBOSE/DEBUG```      | Change the log level (default is verbose for docker)         |

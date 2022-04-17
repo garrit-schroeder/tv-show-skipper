@@ -19,6 +19,8 @@ server_username = os.environ['JELLYFIN_USERNAME'] if 'JELLYFIN_USERNAME' in os.e
 server_password = os.environ['JELLYFIN_PASSWORD'] if 'JELLYFIN_PASSWORD' in os.environ else ''
 env_path_map_str = os.environ['PATH_MAP'] if 'PATH_MAP' in os.environ else ''
 env_reverse_sort_str = os.environ['REVERSE_SORT'] if 'REVERSE_SORT' in os.environ else ''
+env_log_level_str = os.environ['LOG_LEVEL'] if 'LOG_LEVEL' in os.environ else ''
+
 
 config_path = Path(os.environ['CONFIG_DIR']) if 'CONFIG_DIR' in os.environ else Path(Path.cwd() / 'config')
 data_path = Path(os.environ['DATA_DIR']) if 'DATA_DIR' in os.environ else Path(config_path / 'data')
@@ -338,6 +340,13 @@ def main(argv):
         reverse_sort = True
     elif env_reverse_sort_str == 'FALSE':
         reverse_sort = False
+    
+    if env_log_level_str == 'DEBUG':
+        log_level = 2
+    elif env_log_level_str == 'VERBOSE':
+        log_level = 1
+    elif env_log_level_str == 'INFO':
+        log_level = 0
     process_jellyfin_shows(log_level, log, save_json, reverse_sort)
 
 
