@@ -114,6 +114,9 @@ def check_season_valid(season=None, episodes=[], log_level=0, log_file=False):
     if filtered_episodes[0]['Duration'] < minimum_episode_duration * 60 * 1000:
         print_debug(a=['skipping season [%s] since episodes are too short (%s minutes) (less than minimum %s minutes)' % (season['Name'], duration_mins, minimum_episode_duration)], log=log_level > 1)
         return []
+    if len(filtered_episodes) < 2:
+        print_debug(a=['skipping season [%s] since it doesn\'t contain at least 2 episodes' % season['Name']], log=log_level > 1)
+        return []
 
     if len(filtered_episodes) > 0 and len(episodes) - len(filtered_episodes) > 0:
         print_debug(a=['season [%s] of show [%s] - will skip %s of %s episodes' % (season['Name'], season['SeriesName'], len(episodes) - len(filtered_episodes), len(episodes))], log=log_level > 0, log_file=log_file)
@@ -266,10 +269,6 @@ def process_jellyfin_shows(log_level=0, log_file=False, save_json=False, reverse
         season_ndx = 1
         for season in show['Seasons']:
             season_ndx += 1
-
-            if len(season['Episodes']) < 2:
-                print_debug(a=['skipping season [%s] since it doesn\'t contain at least 2 episodes' % season['Name']])
-                continue
 
             season_start_time = datetime.now()
             file_paths = get_file_paths(season)
