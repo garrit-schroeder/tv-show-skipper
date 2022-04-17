@@ -193,9 +193,9 @@ def get_jellyfin_shows(reverse_sort=False, log_level=0, log_file=False):
 
     jellyfin_logout()
 
-    print_debug(a=['found %s valid shows' % len(shows)], log_file=log_file and episode_count > 0)
-    print_debug(a=['found %s valid seasons' % season_count], log_file=log_file and episode_count > 0)
-    print_debug(a=['found %s valid episodes\n' % episode_count], log_file=log_file and episode_count > 0)
+    print_debug(a=['found %s qualifying shows' % len(shows)], log_file=log_file and episode_count > 0)
+    print_debug(a=['found %s qualifying seasons' % season_count], log_file=log_file and episode_count > 0)
+    print_debug(a=['found %s qualifying episodes\n' % episode_count], log_file=log_file and episode_count > 0)
 
     return shows
 
