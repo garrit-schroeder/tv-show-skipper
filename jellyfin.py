@@ -99,6 +99,20 @@ def check_season_valid(season=None, episodes=[], log_level=0, log_file=False):
 
     if failed_to_find_files:
         print_debug(a=['season [%s] of show [%s] - failed to access some of the media files' % (season['Name'], season['SeriesName'])], log=log_level > 1)
+
+    if not filtered_episodes:
+        return []
+    if len(filtered_episodes) > maximum_episodes_per_season:
+        print_debug(a=['skipping season [%s] since it contains %s episodes (more than max %s)' % (season['Name'], len(filtered_episodes), maximum_episodes_per_season)], log=log_level > 1)
+        return []
+    
+    duration_mins = int(filtered_episodes[0]['Duration'])
+    if duration_mins > 0:
+        duration_mins = duration_mins / 60 / 1000
+    if filtered_episodes[0]['Duration'] < minimum_episode_duration * 60 * 1000:
+        print_debug(a=['skipping season [%s] since episodes are too short (%s minutes) (less than minimum %s minutes)' % (season['Name'], duration_mins, minimum_episode_duration)], log=log_level > 1)
+        return []
+
     if len(filtered_episodes) > 0 and len(episodes) - len(filtered_episodes) > 0:
         print_debug(a=['season [%s] of show [%s] - will skip %s of %s episodes' % (season['Name'], season['SeriesName'], len(episodes) - len(filtered_episodes), len(episodes))], log=log_level > 0, log_file=log_file)
     return filtered_episodes
@@ -252,13 +266,7 @@ def process_jellyfin_shows(log_level=0, log_file=False, save_json=False, reverse
             season_ndx += 1
 
             if len(season['Episodes']) < 2:
-                print_debug(a=['skipping season [%s] since it doesn\'t contain at least 2 episodes' % season['Name']], log_file=log_file)
-                continue
-            if len(season['Episodes']) > maximum_episodes_per_season:
-                print_debug(a=['skipping season [%s] since it contains %s episodes (more than max %s)' % (season['Name'], len(season['Episodes']), maximum_episodes_per_season)], log_file=log_file)
-                continue
-            if season['Episodes'][0]['Duration'] < minimum_episode_duration * 60 * 1000:
-                print_debug(a=['skipping season [%s] since episodes are too short (%s) (less than minimum %s minutes)' % (season['Name'], len(season['Episodes']), minimum_episode_duration)], log_file=log_file)
+                print_debug(a=['skipping season [%s] since it doesn\'t contain at least 2 episodes' % season['Name']])
                 continue
 
             season_start_time = datetime.now()
