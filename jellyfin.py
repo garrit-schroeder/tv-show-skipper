@@ -255,7 +255,7 @@ def process_jellyfin_shows(log_level=0, log_file=False, save_json=False, reverse
         except OSError as e:
             print_debug(a=["Error: %s : %s" % ('deleting fingerprints directory', e.strerror)], log_file=log_file)
 
-    show_ndx = 1
+    show_ndx = 0
     total_processed = 0
     for show in shows:
         show_ndx += 1
