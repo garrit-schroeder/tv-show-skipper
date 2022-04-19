@@ -14,6 +14,7 @@ def map_path(path, path_map):
 
         if path_map_parts.issubset(jellyfin_path_parts):
             new_path = str(Path(mapping[0]).joinpath(Path(*jellyfin_path_parts_list[len(path_map_parts_list):])))
+            break
     return new_path
 
 
