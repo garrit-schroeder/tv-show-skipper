@@ -129,10 +129,10 @@ def check_season_valid(season=None, episodes=[], log_level=0, log_file=False):
     if duration_mins > 0:
         duration_mins = duration_mins / 60 / 1000
     if filtered_episodes[0]['Duration'] < minimum_episode_duration * 60 * 1000:
-        print_debug(a=['skipping season [%s] since episodes are too short (%s minutes) (less than minimum %s minutes)' % (season['Name'], duration_mins, minimum_episode_duration)], log=log_level > 1)
+        print_debug(a=['skipping season [%s] of show [%s] - episodes are too short (%s minutes) (less than minimum %s minutes)' % (season['Name'], season['SeriesName'], duration_mins, minimum_episode_duration)], log=log_level > 1)
         return []
     if len(filtered_episodes) < 2:
-        print_debug(a=['skipping season [%s] since it doesn\'t contain at least 2 episodes' % season['Name']], log=log_level > 1)
+        print_debug(a=['skipping season [%s] of show [%s] - it doesn\'t contain at least 2 episodes' % (season['Name'], season['SeriesName'])], log=log_level > 1)
         return []
 
     if len(filtered_episodes) > 0 and len(episodes) - len(filtered_episodes) > 0:
