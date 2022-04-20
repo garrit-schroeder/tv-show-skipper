@@ -101,6 +101,7 @@ def check_season_valid(season=None, episodes=[], log_level=0, log_file=False):
 
     if failed_to_find_files:
         print_debug(a=['season [%s] of show [%s] - failed to access some of the media files' % (season['Name'], season['SeriesName'])], log=log_level > 1)
+        print_debug(a=['path for the first episode [%s]' % episodes[0]['Path']], log=log_level > 1)
 
     if not filtered_episodes:
         return []
@@ -152,7 +153,7 @@ def get_jellyfin_shows(reverse_sort=False, log_level=0, log_file=False):
     episode_count = 0
     for show in shows_query:
         should_skip_series = False
-        if 'Path' in show and show['Path'] and Path(show['Path']).is_dir():
+        if 'Path' in show and show['Path'] != '' and Path(show['Path']).is_dir():
             for child in Path(show['Path']).iterdir():
                 if child.name == '.ignore-intros':
                     print_debug(a=['ignoring series [%s]' % show['Name']], log=log_level > 0)
@@ -169,7 +170,7 @@ def get_jellyfin_shows(reverse_sort=False, log_level=0, log_file=False):
 
         for season in seasons_query:
             should_skip_season = False
-            if 'Path' in season and season['Path'] and Path(season['Path']).is_dir():
+            if 'Path' in season and season['Path'] != '' and Path(season['Path']).is_dir():
                 for child in Path(season['Path']).iterdir():
                     if child.name == '.ignore-intros':
                         print_debug(a=['ignoring season [%s] of show [%s]' % (season['Name'], show['Name'])], log=log_level > 0)
