@@ -87,18 +87,18 @@ def monitor_sessions(monitor_all_users=False):
                     start_time_ticks = int(dict['start_time_ms']) * TICKS_PER_MS
                     end_time_ticks = int(dict['end_time_ms']) * TICKS_PER_MS
         else:
-            print('couldn\'t find data for item at [%s]' % str(file_path))
+            print('couldn\'t find json file for item. This likely means the episode hasn\'t been processed - checked for file [%s]' % str(file_path))
             continue
 
         if start_time_ticks == 0 and end_time_ticks == 0:
-            print('no useable intro data')
+            print('no useable intro data - start_time and end_time are both 0')
             continue
 
         if position_ticks < start_time_ticks or position_ticks > end_time_ticks:
             continue
 
         if end_time_ticks - start_time_ticks < minimum_intro_length * 1000 * TICKS_PER_MS:
-            print('intro is less than %ss - skipping' % minimum_intro_length)
+            print('ignoring episode - intro is less than %ss' % minimum_intro_length)
             continue
 
         preroll_ticks = preroll_seconds * 1000 * TICKS_PER_MS
