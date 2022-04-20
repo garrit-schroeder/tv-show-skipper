@@ -50,7 +50,7 @@ def replace(s):
     return re.sub('[^A-Za-z0-9]+', '', s)
 
 
-def get_path_map():
+def get_path_map(log_level=0):
     path_map = []
 
     if env_path_map_str != '':
@@ -61,17 +61,33 @@ def get_path_map():
                 continue
             path_map.append((Path(map[0]), Path(map[1])))
 
-    if not (config_path / 'path_map.txt').exists():
-        return path_map
+    if (config_path / 'path_map.txt').exists():
+        with (config_path / 'path_map.txt').open('r') as file:
+            for line in file:
+                if line.startswith('#'):
+                    continue
+                map = line.strip().split('::')
+                if len(map) != 2:
+                    continue
+                path_map.append((Path(map[0]), Path(map[1])))
 
-    with (config_path / 'path_map.txt').open('r') as file:
-        for line in file:
-            if line.startswith('#'):
-                continue
-            map = line.strip().split('::')
-            if len(map) != 2:
-                continue
-            path_map.append((Path(map[0]), Path(map[1])))
+    if log_level > 1:
+        print_debug(a=['path maps: [%s]' % path_map], log=True)
+        for path in path_map:
+            if Path(path[0]).exists() and Path(path[0]).is_dir():
+                print_debug(a=['top level contents of mapped path [%s]' % str(path[0])], log=True)
+                for child in Path(path[0]).iterdir():
+                    print_debug(a=[str(child.resolve())], log=True)
+            else:
+                print_debug(a=['mapped path [%s] isn\'t accessible' % str(path[0])], log=True)
+
+            if Path(path[1]).exists() and Path(path[1]).is_dir():
+                print_debug(a=['top level contents of mapped path [%s]' % str(path[1])], log=True)
+                for child in Path(path[1]).iterdir():
+                    print_debug(a=[str(child.resolve())], log=True)
+            else:
+                print_debug(a=['mapped path [%s] isn\'t accessible' % str(path[1])], log=True)
+
     return path_map
 
 
@@ -139,7 +155,7 @@ def get_jellyfin_shows(reverse_sort=False, log_level=0, log_file=False):
         print_debug(a=['missing server info'])
         return
 
-    path_map = get_path_map()
+    path_map = get_path_map(log_level)
 
     client = jellyfin_login(server_url, server_username, server_password, "TV Intro Detection Scanner")
     shows_query = jellyfin_queries.get_shows(client, path_map, reverse_sort)
@@ -153,7 +169,7 @@ def get_jellyfin_shows(reverse_sort=False, log_level=0, log_file=False):
     episode_count = 0
     for show in shows_query:
         should_skip_series = False
-        if 'Path' in show and show['Path'] != '' and Path(show['Path']).is_dir():
+        if 'Path' in show and show['Path'] and show['Path'] != '' and Path(show['Path']).is_dir():
             for child in Path(show['Path']).iterdir():
                 if child.name == '.ignore-intros':
                     print_debug(a=['ignoring series [%s]' % show['Name']], log=log_level > 0)
@@ -170,7 +186,7 @@ def get_jellyfin_shows(reverse_sort=False, log_level=0, log_file=False):
 
         for season in seasons_query:
             should_skip_season = False
-            if 'Path' in season and season['Path'] != '' and Path(season['Path']).is_dir():
+            if 'Path' in season and season['Path'] and season['Path'] != '' and Path(season['Path']).is_dir():
                 for child in Path(season['Path']).iterdir():
                     if child.name == '.ignore-intros':
                         print_debug(a=['ignoring season [%s] of show [%s]' % (season['Name'], show['Name'])], log=log_level > 0)
