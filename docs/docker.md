@@ -71,3 +71,56 @@ docker run -d \
 | Optional | ```-e CONFIG_DIR=/config```      |  Use a different directory to store config files. The directory specified should be reflected in the ```/app/config``` path mapping.          |
 | Optional | ```-e DATA_DIR=/config/data```      | Use a different directory to store cached data. Modifying this will likely require a new path mapping such as ```-v /path/to/data:/data```         |
 | Optional | ```-e LOG_LEVEL=INFO/VERBOSE/DEBUG```      | Change the log level (default is verbose for docker)         |
+
+### Docker in Windows
+
+In Windows, network drives need to be mounted with a driver. In this example, an SMB share is mounted.
+
+```
+---
+version: "3.8"
+
+volumes:
+  mymount:
+    name: mymount
+    driver_opts:
+      type: cifs
+      o: "user=Guest,iocharset=utf8,vers=3.1.1,rw"
+      device: //192.168.0.101/MyMount
+  myothermount:
+    name: myothermount
+    driver_opts:
+      type: cifs
+      o: "user=Guest,iocharset=utf8,vers=3.1.1,rw"
+      device: //192.168.0.102/MyOtherMount
+
+services:
+  Jellyfin-Intro-Scanner:
+    image: ghcr.io/mueslimak3r/jellyfin-intro-scanner:latest
+
+    container_name: Jellyfin-Intro-Scanner
+    environment:
+      - JELLYFIN_URL=http://192.168.0.1212:8096
+      - JELLYFIN_USERNAME=myuser
+      - JELLYFIN_PASSWORD=mypassword
+      - PATH_MAP=/mnt/mymount/TV::/jellyfin-mymount/TV,/mnt/myothermount/TV::/jellyfin-myothermount/TV,/mnt/x/TV/::/jellyfin-x/TV
+      # - LOG_LEVEL=DEBUG
+    volumes:
+      - mymount:/mnt/mymount
+      - myothermount:/mnt/myothermount
+      - /x/TV:/mnt/x/TV
+      - /c/Tools/Jellyfin-Intro-Skip/config:/app/config
+    restart: unless-stopped
+
+  Jellyfin-Intro-Skipper:
+    image: ghcr.io/mueslimak3r/jellyfin-intro-skipper:latest
+
+    container_name: Jellyfin-Intro-Skipper
+    environment:
+      - JELLYFIN_URL=http://192.168.0.1212:8096
+      - JELLYFIN_USERNAME=myuser
+      - JELLYFIN_PASSWORD=mypassword
+    volumes:
+      - /c/Tools/Jellyfin-Intro-Skip/config:/app/config
+    restart: unless-stopped
+```

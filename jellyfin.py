@@ -169,7 +169,7 @@ def get_jellyfin_shows(reverse_sort=False, log_level=0, log_file=False):
     episode_count = 0
     for show in shows_query:
         should_skip_series = False
-        if 'Path' in show and show['Path'] and show['Path'] != '' and Path(show['Path']).is_dir():
+        if 'Path' in show and show['Path'] and Path(show['Path']).is_dir():
             for child in Path(show['Path']).iterdir():
                 if child.name == '.ignore-intros':
                     print_debug(a=['ignoring series [%s]' % show['Name']], log=log_level > 0)
@@ -186,7 +186,7 @@ def get_jellyfin_shows(reverse_sort=False, log_level=0, log_file=False):
 
         for season in seasons_query:
             should_skip_season = False
-            if 'Path' in season and season['Path'] and season['Path'] != '' and Path(season['Path']).is_dir():
+            if 'Path' in season and season['Path'] and Path(season['Path']).is_dir():
                 for child in Path(season['Path']).iterdir():
                     if child.name == '.ignore-intros':
                         print_debug(a=['ignoring season [%s] of show [%s]' % (season['Name'], show['Name'])], log=log_level > 0)
