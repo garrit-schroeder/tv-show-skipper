@@ -15,22 +15,31 @@ Individual shows or seasons can be ignored by creating an empty file named `.ign
 ### Examples
 scan your jellyfin library, store the result in json, verbose logging enabled, logging debug output to file enabled
 
-`export JELLYFIN_URL="https://myurl" && export JELLYFIN_USERNAME="myusername" && export JELLYFIN_PASSWORD='mypassword'`
+```
+export JELLYFIN_URL="https://myurl" && export JELLYFIN_USERNAME="myusername" && export JELLYFIN_PASSWORD='mypassword'
 
-`jellyfin.py -j -v -l`
+jellyfin.py -j -v -l
+```
 
 or in reverse order
 
-`jellyfin.py -j -v -l --reverse`
+```
+jellyfin.py -j -v -l --reverse
+```
 
 monitor your jellyfin sessions and automatically skip intros using the stored json data
 
-`export JELLYFIN_URL="https://myurl" && export JELLYFIN_USERNAME="myusername" && export JELLYFIN_PASSWORD='mypassword'`
+```
+export JELLYFIN_URL="https://myurl" && export JELLYFIN_USERNAME="myusername" && export JELLYFIN_PASSWORD='mypassword'
 
-`jellyfin_auto_skip.py`
+jellyfin_auto_skip.py
+```
 
 manually scan a directory containing at least 2 video files, debug logging enabled, logging debug output to file enabled, delete fingerprint data afterward
-`decode.py -i /path/to/tv/season -d -l -c`
+
+```
+decode.py -i /path/to/tv/season -d -l -c
+```
 
 make the script aware of your host:container path mapping by editing `path_map.txt`
 
