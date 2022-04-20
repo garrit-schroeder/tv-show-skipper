@@ -61,7 +61,7 @@ docker run -d \
 ### Parameters - used by both scanner and skipper
 |---
 | Parameter | Function | Description
-|-|:-|:-:
+|:-|:-:|-:
 | Required | ```-e JELLYFIN_URL=http://Jellyfin:port``` | Jellyfin URL
 |---
 | Required | ```-e JELLYFIN_USERNAME=username``` | Jellyfin User Username
