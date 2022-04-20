@@ -72,9 +72,9 @@ docker run -d \
 | Optional | ```-e DATA_DIR=/config/data```      | Use a different directory to store cached data. Modifying this will likely require a new path mapping such as ```-v /path/to/data:/data```         |
 | Optional | ```-e LOG_LEVEL=INFO/VERBOSE/DEBUG```      | Change the log level (default is verbose for docker)         |
 
-### Docker in Windows
+### Docker with network shares
 
-In Windows, network drives need to be mounted with a driver. In this example, an SMB share is mounted.
+Network shares need to be mounted with a driver. This example uses a Windows host, two SMB shares, and a local drive.
 
 ```
 ---
