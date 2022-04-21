@@ -4,12 +4,15 @@ on:
   push:
     branches:
       - master
-    paths-ignore:
-      - 'jellyfin_auto_skip.py'
-      - '**.md'
-      - '**.gitignore'
-      - 'docs/**'
-      - '.github/**'
+    paths:
+      - '**.py'
+      - 'Dockerfile_Jellyfin-Intro-Scanner'
+      - '!jellyfin_auto_skip.py'
+      - '!Dockerfile_Jellyfin-Intro-Skipper'
+      - '!**.md'
+      - '!**.gitignore'
+      - '!docs/**'
+      - '!.github/**'
 
 env:
   IMAGE_NAME_SCANNER: jellyfin-intro-scanner

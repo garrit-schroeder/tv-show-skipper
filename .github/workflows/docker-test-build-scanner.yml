@@ -2,12 +2,15 @@ name: Docker Test Build Jellyfin Intro Scanner
 
 on:   
   pull_request:
-    paths-ignore:
-      - 'jellyfin_auto_skip.py'
-      - '**.md'
-      - '**.gitignore'
-      - 'docs/**'
-      - '.github/**'
+    paths:
+      - '**.py'
+      - 'Dockerfile_Jellyfin-Intro-Scanner'
+      - '!jellyfin_auto_skip.py'
+      - '!Dockerfile_Jellyfin-Intro-Skipper'
+      - '!**.md'
+      - '!**.gitignore'
+      - '!docs/**'
+      - '!.github/**'
 
 env:
   IMAGE_NAME_Scanner: jellyfin-intro-scanner-test
