@@ -1,4 +1,4 @@
-name: TV Intro Detection
+title: TV Intro Detection
 description: This project tries to detect intros of tv series by comparing pairs of episodes to find the largest common subset of frames.
 
 remote_theme: just-the-docs/just-the-docs
