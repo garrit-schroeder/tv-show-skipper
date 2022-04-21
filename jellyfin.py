@@ -27,7 +27,6 @@ data_path = Path(os.environ['DATA_DIR']) if 'DATA_DIR' in os.environ else Path(c
 
 minimum_episode_duration = 15  # minutes
 maximum_episodes_per_season = 30  # meant to skip daily shows like jeopardy
-
 sleep_after_finish_sec = 300  # sleep for 5 minutes after the script finishes. If it runs automatically this prevents it rapidly looping
 
 session_timestamp = datetime.now().strftime("%Y_%m_%d-%I_%M_%S_%p")
