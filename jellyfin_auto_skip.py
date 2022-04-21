@@ -8,9 +8,7 @@ import getopt
 from pathlib import Path
 from time import sleep
 from datetime import datetime, timezone
-from requests.exceptions import HTTPError
 from jellyfin_api_client import jellyfin_login, jellyfin_logout
-from jellyfin_apiclient_python.exceptions import HTTPException
 
 server_url = os.environ['JELLYFIN_URL'] if 'JELLYFIN_URL' in os.environ else ''
 server_username = os.environ['JELLYFIN_USERNAME'] if 'JELLYFIN_USERNAME' in os.environ else ''
@@ -31,14 +29,18 @@ should_exit = False
 
 
 def monitor_sessions(monitor_all_users=False):
+    global should_exit
+
     if client is None:
         return False
 
     start = datetime.now(timezone.utc)
     try:
         sessions = client.jellyfin.sessions()
-    except (HTTPError, HTTPException) as err:
+    except BaseException as err:
+        should_exit = True
         print("error communicating with the server %s" % err)
+        print('will exit')
         return False
 
     for session in sessions:
@@ -122,13 +124,27 @@ def monitor_sessions(monitor_all_users=False):
 
 def init_client():
     global client
+    global should_exit
 
     print('initializing client')
-    if client is not None:
-        jellyfin_logout()
-    sleep(1)
-    client = jellyfin_login(server_url, server_username, server_password, "TV Intro Auto Skipper")
-    
+    if client is not None and not should_exit:
+        try:
+            jellyfin_logout()
+        except BaseException as err:
+            print("error communicating with the server %s" % err)
+            print('will exit')
+            should_exit = True
+            client = None
+            return
+    if not should_exit:
+        sleep(1)
+        try:
+            client = jellyfin_login(server_url, server_username, server_password, "TV Intro Auto Skipper")
+        except BaseException as err:
+            print("error communicating with the server %s" % err)
+            print('will exit')
+            should_exit = True
+
 
 def monitor_loop(monitor_all_users=False):
     global should_exit
@@ -138,13 +154,22 @@ def monitor_loop(monitor_all_users=False):
         return
     
     init_client()
-    print('will monitor %s' % 'all users' if monitor_all_users else 'current user')
+    if should_exit:
+        return
+
+    print('will monitor [%s]' % ('all users' if monitor_all_users else 'current user'))
     print('listening for jellyfin sessions...')
     while not should_exit:
         if not monitor_sessions(monitor_all_users) and not should_exit:
             init_client()
         sleep(5)
-    jellyfin_logout()
+    if client is not None:
+        try:
+            jellyfin_logout()
+        except BaseException as err:
+            print("error communicating with the server %s" % err)
+            print('will exit')
+            return
 
 
 def main(argv):
@@ -179,7 +204,7 @@ def receiveSignal(signalNumber, frame):
     global should_exit
 
     if signalNumber == signal.SIGINT:
-        print('should exit')
+        print('will exit')
         should_exit = True
     return
 
