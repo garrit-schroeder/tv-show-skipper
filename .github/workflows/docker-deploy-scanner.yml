@@ -9,6 +9,7 @@ on:
       - '**.md'
       - '**.gitignore'
       - 'docs/**'
+      - '.github/**'
 
 env:
   IMAGE_NAME_SCANNER: jellyfin-intro-scanner
