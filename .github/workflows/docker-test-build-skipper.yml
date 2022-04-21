@@ -1,0 +1,17 @@
+name: Docker Image Test Build Jellyfin Intro Auto Skipper
+
+on:   
+  pull_request:
+    paths:
+      - 'jellyfin_auto_skip.py'
+
+env:
+  IMAGE_NAME_Skipper: jellyfin-intro-skipper-test
+
+jobs:
+  Test_Build_Skipper:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build image
+        run: docker build -f Dockerfile_Jellyfin-Intro-Skipper -t jellyfin-intro-skipper-test .
