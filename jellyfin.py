@@ -2,6 +2,7 @@ import os
 import re
 import sys
 import getopt
+
 import jellyfin_queries
 import json
 import shutil
@@ -9,10 +10,11 @@ import hashlib
 
 
 from time import sleep
+from math import floor
 from pathlib import Path
 from datetime import datetime
 from jellyfin_api_client import jellyfin_login, jellyfin_logout
-from decode import process_directory
+from decode import process_directory, read_fingerprint, create_video_fingerprint
 
 server_url = os.environ['JELLYFIN_URL'] if 'JELLYFIN_URL' in os.environ else ''
 server_username = os.environ['JELLYFIN_USERNAME'] if 'JELLYFIN_USERNAME' in os.environ else ''
@@ -30,6 +32,10 @@ maximum_episodes_per_season = 30  # meant to skip daily shows like jeopardy
 sleep_after_finish_sec = 300  # sleep for 5 minutes after the script finishes. If it runs automatically this prevents it rapidly looping
 
 session_timestamp = datetime.now().strftime("%Y_%m_%d-%I_%M_%S_%p")
+
+hash_fps = 2
+
+revision_id = 2.0
 
 
 def print_debug(a=[], log=True, log_file=False):
@@ -58,7 +64,7 @@ def get_path_map(log_level=0):
             map = m.strip().split('::')
             if len(map) != 2:
                 continue
-            path_map.append((Path(map[0]), Path(map[1])))
+            path_map.append((Path(map[0].replace('\\', '/')), Path(map[1].replace('\\', '/'))))
 
     if (config_path / 'path_map.txt').exists():
         with (config_path / 'path_map.txt').open('r') as file:
@@ -68,10 +74,10 @@ def get_path_map(log_level=0):
                 map = line.strip().split('::')
                 if len(map) != 2:
                     continue
-                path_map.append((Path(map[0]), Path(map[1])))
+                path_map.append((Path(map[0].replace('\\', '/')), Path(map[1].replace('\\', '/'))))
 
     if log_level > 1:
-        print_debug(a=['path maps: [%s]' % path_map], log=True)
+        print_debug(a=['path maps: %s' % path_map], log=True)
         for path in path_map:
             if Path(path[0]).exists() and Path(path[0]).is_dir():
                 print_debug(a=['top level contents of mapped path [%s]' % str(path[0])], log=True)
@@ -90,13 +96,12 @@ def get_path_map(log_level=0):
     return path_map
 
 
-def check_season_valid(season=None, episodes=[], log_level=0, log_file=False):
+def check_season_valid(season=None, episodes=[], repair=False, debug=False):
     if season is None or not episodes:
         return []
 
     path = data_path / 'jellyfin_cache' / str(season['SeriesId']) / str(season['SeasonId'])
 
-    file_paths = []
     filtered_episodes = []
     failed_to_find_files = False
 
@@ -105,7 +110,20 @@ def check_season_valid(season=None, episodes=[], log_level=0, log_file=False):
             if not Path(episode['Path']).exists():
                 failed_to_find_files = True
                 continue
-            if not Path(path / (str(episode['EpisodeId']) + '.json')).exists():
+
+            should_add = True
+            if Path(path / (str(episode['EpisodeId']) + '.json')).exists():
+                should_add = False
+                if repair:
+                    with Path(path / (str(episode['EpisodeId']) + '.json')).open('r') as json_file:
+                        profile = json.load(json_file)
+                        if 'start_frame' in profile and 'end_frame' in profile:
+                            start_frame = int(profile['start_frame'])
+                            end_frame = int(profile['end_frame'])
+                            if start_frame == 0 and end_frame == 0:
+                                should_add = True
+                                print_debug(a=['will repair ep [%s] of season [%s] of show [%s]' % (episode['Name'], season['Name'], season['SeriesName'])], log=debug, log_file=debug)
+            if should_add:
                 filtered_episodes.append(episode)
     else:
         for episode in episodes:
@@ -115,27 +133,29 @@ def check_season_valid(season=None, episodes=[], log_level=0, log_file=False):
             filtered_episodes.append(episode)
 
     if failed_to_find_files:
-        print_debug(a=['season [%s] of show [%s] - failed to access some of the media files' % (season['Name'], season['SeriesName'])], log=log_level > 1)
-        print_debug(a=['path for the first episode [%s]' % episodes[0]['Path']], log=log_level > 1)
+        print_debug(a=['skipping season [%s] of show [%s] - failed to access some of the media files' % (season['Name'], season['SeriesName'])], log=debug, log_file=debug)
+        print_debug(a=['path for the first episode [%s]' % episodes[0]['Path']], log=debug, log_file=debug)
 
     if not filtered_episodes:
         return []
     if len(filtered_episodes) > maximum_episodes_per_season:
-        print_debug(a=['skipping season [%s] since it contains %s episodes (more than max %s)' % (season['Name'], len(filtered_episodes), maximum_episodes_per_season)], log=log_level > 1)
+        print_debug(a=['skipping season [%s] of show [%s] - it contains %s episodes (more than max %s)' % (season['Name'], season['SeriesName'], len(filtered_episodes), maximum_episodes_per_season)], log=debug, log_file=debug)
         return []
     
     duration_mins = int(filtered_episodes[0]['Duration'])
     if duration_mins > 0:
         duration_mins = duration_mins / 60 / 1000
     if filtered_episodes[0]['Duration'] < minimum_episode_duration * 60 * 1000:
-        print_debug(a=['skipping season [%s] of show [%s] - episodes are too short (%s minutes) (less than minimum %s minutes)' % (season['Name'], season['SeriesName'], duration_mins, minimum_episode_duration)], log=log_level > 1)
+        print_debug(a=['skipping season [%s] of show [%s] - episodes are too short (%s minutes) (less than minimum %s minutes)' % (season['Name'], season['SeriesName'], duration_mins, minimum_episode_duration)], log=debug, log_file=debug)
         return []
-    if len(filtered_episodes) < 2:
-        print_debug(a=['skipping season [%s] of show [%s] - it doesn\'t contain at least 2 episodes' % (season['Name'], season['SeriesName'])], log=log_level > 1)
+    
+    season_hash_exists = 1 if season['SeasonFingerprint'] is not None else 0
+    if len(filtered_episodes) + season_hash_exists < 2:
+        print_debug(a=['skipping season [%s] of show [%s] - it doesn\'t contain at least 2 episodes' % (season['Name'], season['SeriesName'])], log=debug, log_file=debug)
         return []
 
     if len(filtered_episodes) > 0 and len(episodes) - len(filtered_episodes) > 0:
-        print_debug(a=['season [%s] of show [%s] - will skip %s of %s episodes' % (season['Name'], season['SeriesName'], len(episodes) - len(filtered_episodes), len(episodes))], log=log_level > 0, log_file=log_file)
+        print_debug(a=['season [%s] of show [%s] - will skip %s of %s episodes' % (season['Name'], season['SeriesName'], len(episodes) - len(filtered_episodes), len(episodes))], log=True, log_file=debug)
     return filtered_episodes
 
 
@@ -149,7 +169,115 @@ def get_file_paths(season=None):
     return file_paths
 
 
-def get_jellyfin_shows(reverse_sort=False, log_level=0, log_file=False):
+def check_if_in_list_of_dict(dict_list, value):
+    if dict_list is None:
+        return -1
+
+    for ndx in range(0, len(dict_list)):
+        if value in dict_list[ndx].values():
+            return ndx
+    return -1
+
+
+def remake_season_fingerprint(episodes=[], season_fingerprint=None, debug=False):
+    if not episodes:
+        return None
+
+    ndx = -1
+    if 'EpisodeId' in season_fingerprint:
+        ep_id = season_fingerprint['EpisodeId']
+        ndx = check_if_in_list_of_dict(episodes, ep_id)
+
+    if ndx == -1 and 'Name' in season_fingerprint:
+        ndx = check_if_in_list_of_dict(episodes, season_fingerprint['Name'])
+    
+    if ndx == -1:
+        trimmed_path = season_fingerprint['Path' if 'Path' in season_fingerprint else 'path'].split('/')[-1]
+        for i in range(0, len(episodes)):
+            if trimmed_path in str(episodes[i]['Path']):
+                ndx = i
+                break
+
+    if ndx == -1:
+        print_debug(a=['failed to match season fingerprint to episode in jellyfin'], log=debug, log_file=debug)
+        return None
+
+    profile = season_fingerprint
+    profile.update(episodes[ndx])
+    if 'path' in profile:
+        profile.pop('path', None)
+    profile['fingerprint'] = None
+    profile['revision_id'] = revision_id
+
+    fingerprint = create_video_fingerprint(profile, hash_fps, 2 if debug else 0, debug)
+
+    if not fingerprint:
+        print_debug(a=['failed to create new fingerprint'], log=debug, log_file=debug)
+        return None
+    
+    tmp_start_frame = floor((profile['start_frame'] / profile['fps']) * hash_fps) if profile['start_frame'] > 0 else 0
+    tmp_end_frame = floor((profile['end_frame'] / profile['fps']) * hash_fps) if profile['end_frame'] > 0 else 0
+
+    try:
+        trimmed_fingerprint = fingerprint[tmp_start_frame:tmp_end_frame + 1]
+        fingerprint_str = ''
+        for f in trimmed_fingerprint:
+            fingerprint_str += str(f)
+        profile['fingerprint'] = fingerprint_str
+        profile['hash_fps'] = hash_fps
+        return profile
+    except BaseException as err:
+        print_debug(a=['failed to trim new fingerprint'], log=debug, log_file=debug)
+    return None
+
+
+def intro_duration(profile):
+    intro_duration = profile['end_frame'] - profile['start_frame']
+    if intro_duration < 0:
+        intro_duration = 0
+    return intro_duration
+
+
+def get_season_fingerprint(season=None, episodes=[], debug=False):
+    if season is None:
+        return None
+    
+    season_fp_dict = None
+    path = Path(data_path / 'jellyfin_cache' / str(season['SeriesId']) / str(season['SeasonId']) / ('season' + '.json'))
+    if path.exists():
+        with path.open('r') as json_file:
+            season_fp_dict = json.load(json_file)
+
+    if season_fp_dict is None:
+        return None
+    
+    fingerprint_list = []
+    if 'revision_id' in season_fp_dict and season_fp_dict['revision_id'] == revision_id \
+            and 'fingerprint' in season_fp_dict and \
+            'hash_fps' in season_fp_dict and season_fp_dict['hash_fps'] == hash_fps:
+        fingerprint_list = read_fingerprint(season_fp_dict['fingerprint'], 2 if debug else 0, debug)
+
+    profile_modified = False
+
+    if fingerprint_list and abs(len(fingerprint_list) - floor(intro_duration(season_fp_dict) / (season_fp_dict['fps'] / hash_fps))) > 2:
+        print_debug(a=['season fingerprint is wrong length %s instead of %s for season %s of show %s' % (len(fingerprint_list),
+                                                                                                         floor(intro_duration(season_fp_dict) / (season_fp_dict['fps'] / hash_fps)),
+                                                                                                         season['Name'], season['SeriesName'])], log=debug, log_file=debug)
+
+    if not fingerprint_list or abs(len(fingerprint_list) - floor(intro_duration(season_fp_dict) / (season_fp_dict['fps'] / hash_fps))) > 2:
+        print_debug(a=['trying to remake season fingerprint for season %s of show %s' % (season['Name'], season['SeriesName'])], log=debug, log_file=debug)
+        season_fp_dict = remake_season_fingerprint(episodes, season_fp_dict, debug)
+        profile_modified = True
+    else:
+        print_debug(a=['found valid season fingerprint for season %s of show %s' % (season['Name'], season['SeriesName'])], log=debug, log_file=debug)
+
+    if profile_modified and season_fp_dict is not None:
+        with path.open('w+') as json_file:
+            json.dump(season_fp_dict, json_file, indent=4)
+    return season_fp_dict
+
+
+def get_jellyfin_shows(reverse_sort=False, repair=False, log_level=0, log_file=False):
     if server_url == '' or server_username == '' or server_password == '':
         print_debug(a=['missing server info'])
         return
@@ -162,6 +290,8 @@ def get_jellyfin_shows(reverse_sort=False, log_level=0, log_file=False):
         print_debug(a=['Error - got 0 shows from jellyfin'])
         return []
     print_debug(a=['jellyfin has %s shows' % len(shows_query)])
+    if repair:
+        print_debug(a=['repair mode is enabled'])
 
     shows = []
     season_count = 0
@@ -198,7 +328,9 @@ def get_jellyfin_shows(reverse_sort=False, log_level=0, log_file=False):
             if not episodes:
                 continue
 
-            season['Episodes'] = check_season_valid(season, episodes, log_level, log_file)
+            season['SeasonFingerprint'] = get_season_fingerprint(season=season, episodes=episodes, debug=log_level > 1)
+
+            season['Episodes'] = check_season_valid(season, episodes, repair, debug=log_level > 1)
             if season['Episodes']:
                 episode_count += len(season['Episodes'])
                 seasons.append(season)
@@ -222,7 +354,7 @@ def copy_season_fingerprint(result: list = [], dir_path: Path = None, debug: boo
 
     name = ''
     for profile in result:
-        name += replace(profile['path'])
+        name += replace(profile['Path'])
     hash_object = hashlib.md5(name.encode())
     name = hash_object.hexdigest()
 
@@ -247,9 +379,8 @@ def save_season(season=None, result=None, save_json=False, debug=False, log_file
             if debug:
                 print_debug(a=['episode index past bounds of result'], log_file=log_file)
             break
-        if season['Episodes'][ndx]['Path'] == result[ndx]['path']:
+        if season['Episodes'][ndx]['Path'] == result[ndx]['Path']:
             season['Episodes'][ndx].update(result[ndx])
-            season['Episodes'][ndx].pop('path', None)
             print(season['Episodes'][ndx])
             season['Episodes'][ndx]['created'] = str(datetime.now())
             if save_json:
@@ -260,13 +391,13 @@ def save_season(season=None, result=None, save_json=False, debug=False, log_file
             print_debug(a=['index mismatch'], log_file=log_file)
 
 
-def process_jellyfin_shows(log_level=0, log_file=False, save_json=False, reverse_sort=False):
+def process_jellyfin_shows(log_level=0, log_file=False, save_json=False, reverse_sort=False, repair=False):
     start = datetime.now()
     print_debug(a=["\n\nstarted new session at %s\n" % start])
     if reverse_sort:
         print_debug(['will process shows in reverse order'])
 
-    shows = get_jellyfin_shows(reverse_sort, log_level, log_file)
+    shows = get_jellyfin_shows(reverse_sort, repair, log_level, log_file)
     
     if (data_path / 'fingerprints').is_dir():
         try:
@@ -292,7 +423,8 @@ def process_jellyfin_shows(log_level=0, log_file=False, save_json=False, reverse
 
             if file_paths:
                 print_debug(a=['%s/%s - %s - %s episodes' % (season_ndx, len(show['Seasons']), season['Name'], len(season['Episodes']))], log_file=log_file)
-                result = process_directory(file_paths=file_paths, cleanup=False, log_level=2 if log_level > 0 else 0, log_file=log_file, log_timestamp=session_timestamp)
+                result = process_directory(profiles=season['Episodes'], ref_profile=season['SeasonFingerprint'], hashfps=hash_fps,
+                                           cleanup=False, log_level=log_level, log_file=log_file, log_timestamp=session_timestamp)
                 if result:
                     save_season(season, result, save_json, log_level > 0, log_file)
                     total_processed += len(result)
@@ -323,9 +455,10 @@ def main(argv):
     save_json = False
     log = False
     reverse_sort = False
+    repair = False
 
     try:
-        opts, args = getopt.getopt(argv, "hdvjlr", ["reverse"])
+        opts, args = getopt.getopt(argv, "hdvjlr", ["reverse", "repair"])
     except getopt.GetoptError:
         print_debug(['jellyfin.py -d (debug) -j (save json) -l (log to file)'])
         print_debug(['saving to json is currently the only way to skip previously processed files in subsequent runs\n'])
@@ -346,6 +479,8 @@ def main(argv):
             log = True
         elif opt in ("-r", "--reverse"):
             reverse_sort = True
+        elif opt in ("--repair"):
+            repair = True
     
     if server_url == '' or server_username == '' or server_password == '':
         print_debug(['you need to export env variables: JELLYFIN_URL, JELLYFIN_USERNAME, JELLYFIN_PASSWORD\n'])
@@ -362,7 +497,7 @@ def main(argv):
         log_level = 1
     elif env_log_level_str == 'INFO':
         log_level = 0
-    process_jellyfin_shows(log_level, log, save_json, reverse_sort)
+    process_jellyfin_shows(log_level, log, save_json, reverse_sort, repair)
 
 
 if __name__ == "__main__":
