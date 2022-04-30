@@ -53,7 +53,7 @@ def get_frames(path, hash_fps, frame_nb, log_level, log_file):
     command = ["ffmpeg", "-i", path, "-vf", 'fps=%s' % str(hash_fps), "-frames:v", str(frame_nb), "-f", "image2pipe", "-pix_fmt", "rgb24", "-vcodec", "rawvideo", "-s", "384x216", "-"]
 
     with Path(os.devnull).open('w') as devnull_fp:
-        proc = subprocess.Popen(command, stdout=subprocess.PIPE, bufsize=10**8)
+        proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=devnull_fp, bufsize=10**8)
 
         filein = proc.stdout
         bytes_list = []
