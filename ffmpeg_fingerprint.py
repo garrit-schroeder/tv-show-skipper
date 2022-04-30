@@ -5,7 +5,7 @@ import imagehash
 import shutil
 import sys
 import getopt
-import subprocess
+from subprocess import Popen, PIPE, SubprocessError
 
 from pathlib import Path
 from PIL import Image
@@ -34,8 +34,8 @@ def print_debug(a=[], log=True, log_file=False):
 
 
 def write_fingerprint(path, fingerprint):
-    path = Path(data_path / 'fingerprints' / replace(str(path)) / 'fingerprint.txt')
     Path(data_path / 'fingerprints' / replace(str(path))).mkdir(parents=True, exist_ok=True)
+    path = Path(data_path / 'fingerprints' / replace(str(path)) / 'fingerprint.txt')
     with path.open('w+') as text_file:
         text_file.write(fingerprint)
 
@@ -53,12 +53,17 @@ def get_frames(path, hash_fps, frame_nb, log_level, log_file):
     command = ["ffmpeg", "-i", path, "-vf", 'fps=%s' % str(hash_fps), "-frames:v", str(frame_nb), "-f", "image2pipe", "-pix_fmt", "rgb24", "-vcodec", "rawvideo", "-s", "384x216", "-"]
 
     with Path(os.devnull).open('w') as devnull_fp:
-        proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=devnull_fp, bufsize=10**8)
+        proc = Popen(command, stdout=PIPE, stderr=devnull_fp, bufsize=10**8)
 
         filein = proc.stdout
         bytes_list = []
         for _ in range(frame_nb):
-            output = filein.read(img_size[0] * img_size[1] * 3)
+            try:
+                output = filein.read(img_size[0] * img_size[1] * 3)
+            except SubprocessError as err:
+                filein.close()
+                proc.kill()
+                return [], False
             bytes_list.append(output)
         filein.close()
         proc.wait()
@@ -67,7 +72,7 @@ def get_frames(path, hash_fps, frame_nb, log_level, log_file):
         return bytes_list, proc.returncode == 0
 
 
-def get_fingerprint_ffmpeg(path, hash_fps, frame_nb, log_level=1, log_file=False, log_timestamp=None, cleanup=False):
+def get_fingerprint_ffmpeg(path, hash_fps, frame_nb, log_level=1, log_file=False, log_timestamp=None):
     global session_timestamp
 
     if path is None or path == '' or frame_nb == 0:
@@ -93,11 +98,9 @@ def get_fingerprint_ffmpeg(path, hash_fps, frame_nb, log_level=1, log_file=False
         fingerprint_str += str(frame_fingerprint)
         fingerprint_list.append(frame_fingerprint)
         ndx += 1
-    end = datetime.now()
-    print_debug(a=["made images in %s" % str(end - start)], log=log_level > 0, log_file=log_file)
 
-    # if fingerprint_str != '':
-    #    write_fingerprint(path, fingerprint_str)
+    if fingerprint_str != '':
+        write_fingerprint(path, fingerprint_str)
     end = datetime.now()
     print_debug(a=["made hash in %s" % str(end - start)], log=log_level > 0, log_file=log_file)
     return fingerprint_list
@@ -107,8 +110,6 @@ def main(argv):
 
     dir = ''
     log_level = 0
-    cleanup = False
-    slow_mode = False
     try:
         opts, args = getopt.getopt(argv, "hi:dvc")
     except getopt.GetoptError:
@@ -125,10 +126,6 @@ def main(argv):
             log_level = 2
         elif opt == '-v':
             log_level = 1
-        elif opt == '-c':
-            cleanup = True
-        elif opt == '-s':
-            slow_mode = True
 
     if dir == '' or not Path(dir).is_dir():
         print_debug(['decode.py -i <path> -v (verbose - some logging) -d (debug - most logging) -c (cleanup) -s (slow mode)\n'])
@@ -153,7 +150,7 @@ def main(argv):
                 fps = video.get(cv2.CAP_PROP_FPS)
                 quarter_frames_or_first_X_mins = min(int(frames / 4), int(fps * 60 * max_fingerprint_mins))
                 video.release()
-                result = get_fingerprint_ffmpeg(path, quarter_frames_or_first_X_mins, log_level, True, None, cleanup)
+                result = get_fingerprint_ffmpeg(path, quarter_frames_or_first_X_mins, log_level, True, None)
         end = datetime.now()
         print_debug(["total runtime %s" % str(end - start)])
     else:
